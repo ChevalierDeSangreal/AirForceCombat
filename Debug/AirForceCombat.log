@@ -1,0 +1,11 @@
+﻿  AirForceCombat.cpp
+d:\software\assemblylanguage\airforcecombat\function.h(45): warning C4838: 从“__int64”转换到“int”需要收缩转换
+d:\software\assemblylanguage\airforcecombat\function.h(45): warning C4305: “初始化”: 从“__int64”到“int”截断
+d:\software\assemblylanguage\airforcecombat\function.h(45): warning C4309: “初始化”: 截断常量值
+d:\software\assemblylanguage\airforcecombat\airforcecombat.cpp(144): warning C4244: “初始化”: 从“double”转换到“int”，可能丢失数据
+d:\software\assemblylanguage\airforcecombat\airforcecombat.cpp(276): warning C4244: “初始化”: 从“double”转换到“int”，可能丢失数据
+d:\software\assemblylanguage\airforcecombat\airforcecombat.cpp(277): warning C4244: “初始化”: 从“double”转换到“int”，可能丢失数据
+d:\software\assemblylanguage\airforcecombat\airforcecombat.cpp(293): warning C4244: “初始化”: 从“double”转换到“int”，可能丢失数据
+d:\software\assemblylanguage\airforcecombat\airforcecombat.cpp(294): warning C4244: “初始化”: 从“double”转换到“int”，可能丢失数据
+d:\software\assemblylanguage\airforcecombat\airforcecombat.cpp(385): warning C4551: 缺少参数列表的函数调用
+  AirForceCombat.vcxproj -> D:\Software\AssemblyLanguage\AirForceCombat\Debug\AirForceCombat.exe

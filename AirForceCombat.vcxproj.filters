@@ -29,6 +29,9 @@
     <None Include="README.md">
       <Filter>资源文件</Filter>
     </None>
+    <None Include="tmp.asm">
+      <Filter>源文件</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="function.h">
