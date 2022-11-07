@@ -420,6 +420,5 @@ void create_new(){
 }
 /*********************************************************/
 int main() {
-	cout << "hello world!" << endl;
 	return 0;
 }

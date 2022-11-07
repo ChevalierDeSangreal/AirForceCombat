@@ -32,6 +32,9 @@
     <None Include="tmp.asm">
       <Filter>源文件</Filter>
     </None>
+    <None Include="main.asm">
+      <Filter>源文件</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="function.h">
