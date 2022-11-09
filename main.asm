@@ -2,6 +2,7 @@
 .model flat, stdcall
 option casemap : none
 
+.DATA
 location STRUCT
 	x DD 0
 	y DD 0
@@ -21,3 +22,7 @@ control STRUCT
 	x DD 0
 	theta DD 0
 control ENDS
+
+.CODE
+start:
+end start
