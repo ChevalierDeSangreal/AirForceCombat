@@ -1,33 +1,159 @@
-## 类
-
-### 飞机
+## 一些工具类
+### 位置类 POS
 #### 属性
-- 血量
-- 当前位置
-- 升级系统
-- 编号
+- x坐标 REAL fX
+- y坐标 REAL fY
+
+## 类
+### 飞机 AEROCRAFT
+#### 属性
+- 当前生命值 dd dwHP
+- 最大生命值 dd dwMaxHP
+- 当前朝向 REAL fForward
+- 当前位置 POS stNowPos
+- 当前等级 dd dwLevel
+- 当前经验 dd dwExp
+- 攻击力 dd dwAtk
+- 攻速 dd dwAtf
+- 编号 dd dwID
+- 口径 dd dwCaliber
+- 武器类型 dd dwWeaponType
+- 弹药类型 dd dwAmmunition
+- 图片句柄 dd hBmp
+- 绘图句柄 dd hDC
+
 #### 方法
-- 移动
-- 发射子弹
-- 初始化
+- 移动 _AerocraftMov
+- 更改朝向 _AerocraftVeer
+- 发射子弹 _AerocraftFire
+- 更改武器 _AerocraftChangeWeapon
+- 更改弹药 _AerocraftChangeAmmunition
+- 升级 _AerocraftLevelUp
+- 获得经验 _AerocraftGainExp
+- 更改当前生命 _AerocraftChangeNowHP
+- 更改最大生命值 _AerocraftChangeMaxNowHP
+- 更改攻击力 _AerocraftChangeAtk
+- 更改攻速 _AerocraftChangeAtf
+- 更改口径 _AerocraftChangeCaliber
+- 初始化 _AerocraftInit  
+- 析构 _AerocraftDestroy
 
 ---
 
 ### 子弹
 #### 属性
-- 玩家归属
-- 子弹空间编号
-- 当前位置
-- 所属类型
+- id dd dwID
+- 归属飞行器ID dd dwAerocraftID
+- 飞行速度 dd dwSpeed
+- 飞行角度 real fForward
+- 半径 real fRadius
+- 当前位置 POS stNowPos
+- 伤害 dd dwAtk
+- 位图句柄 dd hBmp
+- 绘图句柄 dd hDC
+
 #### 方法
-- 移动
-- 初始化
+- 移动 _BulletMov
+- 初始化 _BulletInit
+- 析构 _BulletDestroy
 
 ---
 
-### 游戏逻辑控制台
+### 经验包
 #### 属性
-- 开始时间
+- id dd dwID
+- 当前生命值 dd dwHP
+- 类型编号 dd dwType
+- 当前位置 POS stNowPos
+- 位图句柄 dd hBmp
+- 绘图句柄 dd hDC
+
+#### 方法
+- 初始化 _ExpPackInit
+- 析构 _ExpPackDestroy
+
+---
+
+### 武器包
+#### 属性
+- id dd dwID
+- 类型编号 dd dwType
+- 空间坐标 POS stNowPos
+- 位图句柄 dd hBmp
+- 绘图句柄 dd hDC
+
+#### 方法
+- 初始化 _WeaponInit
+- 析构 _WeaponDestroy
+
+
+---
+
+### 游戏逻辑控制类 Main
+#### 属性
+- 计时器 dd dwTimer
+> 这个计时器用来维护经验包武器包的生成；玩家发射弹药；
+- 最后一次生成武器包的时间戳 ddLastWeapon
+- 玩家1最后一次发射弹药的时间戳 ddLastFire1
+- 玩家2最后一次发射弹药的时间戳 ddLastFire2
+
+#### 方法
+- 初始化 _MainInit  
+描述：  
+&emsp;&emsp;初始化计时器  
+&emsp;&emsp;初始化经验包武器包生成计时器  
+&emsp;&emsp;调用玩家初始化函数  
+输入：NULL  
+输出：NULL  
+
+- 判断某个圆形是否与边界相交或超出边界 _MainJudgeEdge  
+描述：  
+&emsp;&emsp;结果保存在eax中。若相交或超出则为0，否则为1。  
+输入：  
+&emsp;&emsp;（坐标，半径）(POS, real8)  
+输出：  
+&emsp;&emsp;eax
+
+- 判断两个圆形是否相交 _MainJudgeCross  
+描述：  
+&emsp;&emsp;结果保存在eax中。若相交则为0， 否则为1。  
+输入：  
+&emsp;&emsp;（坐标1，半径1，坐标2，半径2）(POS, real8, POS, real8)  
+输出：  
+&emsp;&emsp;eax
+
+- 控制玩家发射弹药 _MainFire  
+描述：  
+&emsp;&emsp;根据计时器、攻速和时间戳依次判断两个玩家该时刻是否应该发射弹药，并酌情发射弹药，发射后更新时间戳  
+输入：NULL  
+输出：NULL  
+
+- 控制生成经验包 _MainGenerateExp    
+描述：  
+&emsp;&emsp;根据计时器和时间戳判断是否需要生成经验包。若生成则生成。生成后更新时间戳。  
+输入：NULL  
+输出：NULL
+
+- 控制生成武器包 _MainGenerateWeapon  
+描述：  
+&emsp;&emsp;根据计时器和时间戳判断是否需要生成武器包。若生成则生成。生成后更新时间戳。  
+输入：NULL  
+输出：NULL  
+
+- 生成一个随机数 _MainGetRand
+
+---
+
+### 画面显示控制类 _ShowMaker
+> 负责显示画面和维护窗口相关的操作。
+## 属性
+- 背景图片的位图句柄 dd hBmpBack
+- 背景图片的绘图句柄 dd hDCBack
+## 方法
+- 重绘图像 _ShowMakerPaint
+- 初始化 _ShowMakerInit
+- 析构 _ShowMakerDestroy
+
 
 
 ---
