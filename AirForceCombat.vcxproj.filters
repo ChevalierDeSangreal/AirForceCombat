@@ -27,6 +27,12 @@
     <None Include="tmp.asm">
       <Filter>源文件</Filter>
     </None>
+    <None Include="Main.cur">
+      <Filter>资源文件</Filter>
+    </None>
+    <None Include="Move.cur">
+      <Filter>资源文件</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="function.h">
@@ -50,5 +56,19 @@
     <MASM Include="AirForceCombat.asm">
       <Filter>源文件</Filter>
     </MASM>
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="Back1.bmp">
+      <Filter>资源文件</Filter>
+    </Image>
+    <Image Include="Back2.bmp">
+      <Filter>资源文件</Filter>
+    </Image>
+    <Image Include="Main.ico">
+      <Filter>资源文件</Filter>
+    </Image>
+    <Image Include="tmpPlane.bmp">
+      <Filter>资源文件</Filter>
+    </Image>
   </ItemGroup>
 </Project>
