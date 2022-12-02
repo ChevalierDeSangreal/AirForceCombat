@@ -1,2 +1,10 @@
 ﻿  Assembling AirForceCombat.asm...
-  AirForceCombat.vcxproj -> D:\Software\AssemblyLanguage\AirForceCombat\Debug\AirForceCombat.exe
+AirForceCombat.asm(117): warning A6004: procedure argument or local not referenced : dir
+AirForceCombat.asm(117): warning A6004: procedure argument or local not referenced : lpPos
+AirForceCombat.asm(131): warning A6004: procedure argument or local not referenced : lpPos1
+AirForceCombat.asm(131): warning A6004: procedure argument or local not referenced : dwRadius1
+AirForceCombat.asm(131): warning A6004: procedure argument or local not referenced : lpPos2
+AirForceCombat.asm(131): warning A6004: procedure argument or local not referenced : dwRadius2
+AirForceCombat.asm(349): warning A6004: procedure argument or local not referenced : @x
+AirForceCombat.asm(349): warning A6004: procedure argument or local not referenced : @y
+  AirForceCombat.vcxproj -> D:\Project\AL\AirForceCombat\Debug\AirForceCombat.exe
