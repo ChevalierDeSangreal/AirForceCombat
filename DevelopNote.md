@@ -17,6 +17,8 @@
 - 弹药类型 dd dwAmmunition
 - 图片句柄 dd hBmp
 - 绘图句柄 dd hDC
+- 此刻希望的位移 dd dwNxt
+  > 因为每帧才走一次，所以收到键盘读入以后会记录下来，并在帧中进行移动。0表示不变。1234分别为上下左右。移动后归零
 
 #### 方法
 - 移动 _AerocraftMov  
@@ -107,7 +109,11 @@
 &emsp;&emsp;输入：NULL  
 &emsp;&emsp;输出：NULL  
 
-
+- 响应键盘输入 _MainKeyBoard  
+> &emsp;&emsp;描述：  
+> &emsp;&emsp;&emsp;&emsp;更新AEROCRAFT类的nxt  
+> &emsp;&emsp;输入：char:dd  
+> &emsp;&emsp;输出：NULL
 
 
 
@@ -141,22 +147,41 @@
 - 初始化 _ShowMakerInit
 - 析构 _ShowMakerDestroy
 
-
 ---
 
 ## 会用到的工具函数与类
+
+### 取模函数 _mod
+> &emsp;&emsp;描述：输入无符号数x, y, 返回x % y在eax中  
+> &emsp;&emsp;输入：x:dd, y:dd  
+> &emsp;&emsp;输出：eax
+
+### 浮点数比较函数 _fcmp
+> &emsp;&emsp;描述：传入两个real8，依次为x，y，若x>y则返回1，<返回-1，严格等于返回0，返回值在eax中  
+> &emsp;&emsp;输入：x:real8, y:real8  
+> &emsp;&emsp;输出：eax
+
+### 浮点数相等判断函数 _fequ
+> &emsp;&emsp;描述：传入两个real8分别为x, y, 相等返回1，不相等返回0，异常返回-1，返回值保存在eax中。  
+> &emsp;&emsp;输入：x:real8, y:real8
+> &emsp;&emsp;输出：eax
+
+### 计算两点距离 _Getdis
+> &emsp;&emsp;描述：传入两个POS，返回两点距离，返回值保存在st(0)  
+> &emsp;&emsp;输入：POS, POS
+> &emsp;&emsp;输出：st(0):real8
 
 ### 随机数生成器类 Rand
 #### 属性
 自己看着加，加完了在注释里写一下我写文档里。
 #### 方法
 - 用当前时间设置随机化种子 _RandSetSeed  
-> &emsp;&emsp;描述：略  
+> &emsp;&emsp;描述：初始化随机数种子，若输入eax为0，则用时间填充  
 &emsp;&emsp;输入：NULL  
 &emsp;&emsp;输出：NULL
 
 - 得到一个随机数 _RandGet  
-> &emsp;&emsp;描述：输入一个有符号数存在eax中，返回一个[0, eax)间的随机数  
+> &emsp;&emsp;描述：输入一个有符号数存在eax中，返回一个[0, eax)间的随机数，最多到32767(2^15-1)  
 &emsp;&emsp;输入：eax(dd)  
 &emsp;&emsp;输出：eax(dd)
 
