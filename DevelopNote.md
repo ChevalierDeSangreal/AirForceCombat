@@ -2,7 +2,7 @@
 ### 飞机 AEROCRAFT
 #### 属性
 - ID dd dwID  
-> ID为零表示并没有初始化位置，或是不存在，下同。值得注意的是必须在声明时初始化，否则在_GetaPos里可能会出问题
+  > ID为零表示并没有初始化位置，或是不存在，下同。值得注意的是必须在声明时初始化，否则在_GetaPos里可能会出问题
 - 当前生命值 dd dwHP
 - 最大生命值 dd dwMaxHP
 - 当前半径 dd dwRadius
@@ -17,15 +17,20 @@
 - 弹药类型 dd dwAmmunition
 - 图片句柄 dd hBmp
 - 绘图句柄 dd hDC
-- 此刻希望的位移 dd dwNxt
-  > 因为每帧才走一次，所以收到键盘读入以后会记录下来，并在帧中进行移动。0表示不变。1234分别为上下左右。移动后归零
+- 此刻希望的位移 dd dwNxt  
+  > 因为每帧才走一次，所以收到键盘读入以后会记录下来，并在帧中进行移动。0表示不变。1234分别为上下左右。移动后归零。
+- 当前速度 dd dwSpeed  
+  > 表示每1000帧移动的像素
 
 #### 方法
 - 移动 _AerocraftMov  
-> &emsp;&emsp;描述：纯移动，不判断逻辑  
-> &emsp;&emsp;输入：offset AEROCRAFT(目标飞机结构体下标)
+  > 描述：单纯延当前方向移动，在里面判断逻辑  
+  > 输入：offset AEROCRAFT(目标飞机结构体下标)
+  > 输出：NULL
 - 更改朝向 _AerocraftVeer
+  > 无输入，自动给两个飞机更改朝向，并置零dwNxt
 - 发射子弹 _AerocraftFire
+  > 描述：在圆心的位置生成子弹。生成
 - 更改武器 _AerocraftChangeWeapon
 - 更改弹药 _AerocraftChangeAmmunition
 - 升级 _AerocraftLevelUp
@@ -35,10 +40,10 @@
 - 更改攻击力 _AerocraftChangeAtk
 - 更改攻速 _AerocraftChangeAtf
 - 更改口径 _AerocraftChangeCaliber
-- 初始化 _AerocraftInit  
-&emsp;&emsp;描述：无输入，自动给两个实体赋各种初值  
-&emsp;&emsp;输入：NULL  
-&emsp;&emsp;输出：NULL
+- 初始化 _AerocraftInit 
+  > 描述：无输入，自动给两个实体赋各种初值  
+输入：NULL  
+输出：NULL
 - 析构 _AerocraftDestroy
 
 ---
@@ -60,7 +65,18 @@
 - 移动 _BulletMov
 - 初始化 _BulletInit  
 - 析构 _BulletDestroy
-
+- 判断命中 _BulletHitCheck
+  > 描述：依次调用三个判断函数，命中后跳出
+- 判断是否命中玩家并进行后续操作 _BulletHitPlayer
+  > 描述：首先判断是否命中。若未命中返回0，否则返回1.命中的话调取子弹析构函数，更改玩家血量并酌情结束游戏。
+  > 输入：offset BULLET
+  > 输出：eax
+- 判断是否命中经验包并进行后续操作 _BulletHitExp
+  > 描述：首先判断是否命中。若未命中返回0，命中返回1。命中的话，调取子弹析构函数，更改经验包血量，然后判断是否击杀经验包。若击杀经验包，为子弹发出者进行加经验或升级操作。  
+  > 输入：offset BULLET
+  > 输出：eax
+- 判断是否命中墙体并进行后续操作 _BulletHitWall
+  > 基本同上
 ---
 
 ### 经验包
@@ -74,8 +90,17 @@
 
 #### 方法
 - 初始化 _ExpPackInit
+  > 描述：在经验包列表之中寻找空位，分配给新的经验包，其ID为在表中的序号，返回分配的地址。
+  > 输入：经验包的类型  dd
+  > 输出：经验包的指针
 - 析构 _ExpPackDestroy
-
+  > 描述：将所传入的经验包ID置为0，设置为无效数据
+  > 输入：经验包指针  dd
+  > 输出：null
+- 被子弹击中 _ExpPackAttacked
+  > 描述：扣除经验包一定的血量
+  > 输入：经验包指针  dd；扣除血量 dd
+  > 输出：eax（当前血量）
 ---
 
 ### 武器包
@@ -96,44 +121,47 @@
 ### 游戏逻辑控制类 Main
 #### 属性
 - 计时器 dd dwTimer
-> 这个计时器用来维护经验包武器包的生成；玩家发射弹药；
+  > 这个计时器用来维护经验包武器包的生成；玩家发射弹药；
 - 最后一次生成武器包的时间戳 ddLastWeapon
 - 玩家1最后一次发射弹药的时间戳 ddLastFire1
 - 玩家2最后一次发射弹药的时间戳 ddLastFire2
 
 #### 方法
 - 初始化 _MainInit  
-> &emsp;&emsp;描述：  
-&emsp;&emsp;&emsp;&emsp;初始化经验包武器包生成计时器  
-&emsp;&emsp;&emsp;&emsp;调用玩家初始化函数  
-&emsp;&emsp;输入：NULL  
-&emsp;&emsp;输出：NULL  
+  > 描述：  
+&emsp;&emsp;设置时间种子
+&emsp;&emsp;初始化经验包武器包生成计时器  
+&emsp;&emsp;调用玩家初始化函数  
+输入：NULL  
+输出：NULL  
 
 - 响应键盘输入 _MainKeyBoard  
-> &emsp;&emsp;描述：  
-> &emsp;&emsp;&emsp;&emsp;更新AEROCRAFT类的nxt  
-> &emsp;&emsp;输入：char:dd  
-> &emsp;&emsp;输出：NULL
+  > 描述：  
+  > &emsp;&emsp;更新AEROCRAFT类的nxt  
+  > 输入：char:dd  
+  > 输出：NULL
 
+- 进行一帧运算 _MainFrame
+  > &emsp;描述：
 
 
 - 控制玩家发射弹药 _MainFire  
-> &emsp;&emsp;描述：  
-&emsp;&emsp;&emsp;&emsp;根据计时器、攻速和时间戳依次判断两个玩家该时刻是否应该发射弹药，并酌情发射弹药，发射后更新时间戳  
-&emsp;&emsp;输入：NULL  
-&emsp;&emsp;输出：NULL  
+  > 描述：  
+&emsp;&emsp;根据计时器、攻速和时间戳依次判断两个玩家该时刻是否应该发射弹药，并酌情发射弹药，发射后更新时间戳  
+输入：NULL  
+输出：NULL  
 
 - 控制生成经验包 _MainGenerateExp    
-> &emsp;&emsp;描述：  
-&emsp;&emsp;&emsp;&emsp;根据计时器和时间戳判断是否需要生成经验包。若生成则生成。生成后更新时间戳。  
-&emsp;&emsp;输入：NULL  
-&emsp;&emsp;输出：NULL
+  > 描述：  
+&emsp;根据计时器和时间戳判断是否需要生成经验包。若生成则生成。生成后更新时间戳。  
+输入：NULL  
+输出：NULL
 
 - 控制生成武器包 _MainGenerateWeapon  
-> &emsp;&emsp;描述：  
-&emsp;&emsp;&emsp;&emsp;根据计时器和时间戳判断是否需要生成武器包。若生成则生成。生成后更新时间戳。  
-&emsp;&emsp;输入：NULL  
-&emsp;&emsp;输出：NULL  
+  > 描述：  
+&emsp;&emsp;根据计时器和时间戳判断是否需要生成武器包。若生成则生成。生成后更新时间戳。  
+输入：NULL  
+输出：NULL  
 
 ---
 
@@ -152,57 +180,57 @@
 ## 会用到的工具函数与类
 
 ### 取模函数 _mod
-> &emsp;&emsp;描述：输入无符号数x, y, 返回x % y在eax中  
-> &emsp;&emsp;输入：x:dd, y:dd  
-> &emsp;&emsp;输出：eax
+  > &emsp;&emsp;描述：输入无符号数x, y, 返回x % y在eax中  
+  > &emsp;&emsp;输入：x:dd, y:dd  
+  > &emsp;&emsp;输出：eax
 
 ### 浮点数比较函数 _fcmp
-> &emsp;&emsp;描述：传入两个real8，依次为x，y，若x>y则返回1，<返回-1，严格等于返回0，返回值在eax中  
-> &emsp;&emsp;输入：x:real8, y:real8  
-> &emsp;&emsp;输出：eax
+  > &emsp;&emsp;描述：传入两个real8，依次为x，y，若x>y则返回1，<返回-1，严格等于返回0，返回值在eax中  
+  > &emsp;&emsp;输入：x:real8, y:real8  
+  > &emsp;&emsp;输出：eax
 
 ### 浮点数相等判断函数 _fequ
-> &emsp;&emsp;描述：传入两个real8分别为x, y, 相等返回1，不相等返回0，异常返回-1，返回值保存在eax中。  
-> &emsp;&emsp;输入：x:real8, y:real8
-> &emsp;&emsp;输出：eax
+  > &emsp;&emsp;描述：传入两个real8分别为x, y, 相等返回1，不相等返回0，异常返回-1，返回值保存在eax中。  
+  > &emsp;&emsp;输入：x:real8, y:real8
+  > &emsp;&emsp;输出：eax
 
 ### 计算两点距离 _Getdis
-> &emsp;&emsp;描述：传入两个POS，返回两点距离，返回值保存在st(0)  
-> &emsp;&emsp;输入：POS, POS
-> &emsp;&emsp;输出：st(0):real8
+  > &emsp;&emsp;描述：传入两个POS，返回两点距离，返回值保存在st(0)  
+  > &emsp;&emsp;输入：POS, POS
+  > &emsp;&emsp;输出：st(0):real8
 
 ### 随机数生成器类 Rand
 #### 属性
 自己看着加，加完了在注释里写一下我写文档里。
 #### 方法
 - 用当前时间设置随机化种子 _RandSetSeed  
-> &emsp;&emsp;描述：初始化随机数种子，若输入eax为0，则用时间填充  
+  > &emsp;&emsp;描述：初始化随机数种子，若输入eax为0，则用时间填充  
 &emsp;&emsp;输入：NULL  
 &emsp;&emsp;输出：NULL
 
 - 得到一个随机数 _RandGet  
-> &emsp;&emsp;描述：输入一个有符号数存在eax中，返回一个[0, eax)间的随机数，最多到32767(2^15-1)  
+  > &emsp;&emsp;描述：输入一个有符号数存在eax中，返回一个[0, eax)间的随机数，最多到32767(2^15-1)  
 &emsp;&emsp;输入：eax(dd)  
 &emsp;&emsp;输出：eax(dd)
 
-### 延给定方向移动一个单位长度函数 _BitMove
-> &emsp;&emsp;描述：输入方向角和当前位置指针，计算延该方向移动一个单位长度后的新坐标，并修改当前位置  
-&emsp;&emsp;输入：dir(dd, 方向角), offset POS(dd, 当前位置指针)  
+### 延给定方向和长度移动函数 _BitMove
+  > &emsp;&emsp;描述：输入长度方向角和当前位置指针，计算延该方向移动输入长度后的新坐标，并修改当前位置  
+&emsp;&emsp;输入：len(dd, 10\*长度), dir(dd, 方向角\*100), offset POS(dd, 当前位置指针)  
 &emsp;&emsp;输出：NULL
 
 ### 判断两个圆形是否相交 _CheckCircleCross  
-> &emsp;&emsp;描述：结果保存在eax中。若相交则为0， 否则为1。  
+  > &emsp;&emsp;描述：结果保存在eax中。若相交则为0， 否则为1。  
 &emsp;&emsp;输入：（坐标1，半径1，坐标2，半径2）(POS, dd, POS, dd)  
 &emsp;&emsp;输出：eax(0 / 1)
 
 ### 判断某个圆形是否与边界相交或超出边界 _CheckCircleEdge  
-> &emsp;&emsp;描述：结果保存在eax中。若相交或超出则为0，否则为1。  
+  > &emsp;&emsp;描述：结果保存在eax中。若相交或超出则为0，否则为1。  
 &emsp;&emsp;输入：（坐标，半径）(POS, dd)  
 &emsp;&emsp;输出：eax
 
 ### 返回一个可用坐标 _GetaPos
 &emsp;&emsp;描述：输入一个半径。该函数扫描所有实体，返回一个点，保证以该点为圆心，输入为半径的圆与任意实体不相交。若无可用坐标，则返回寄存器全部为0  
-> &emsp;&emsp;输入：eax(dd, 半径)  
+  > &emsp;&emsp;输入：eax(dd, 半径)  
 &emsp;&emsp;输出：eax(dd, X), ebx(dd, Y)
 
 ### 像素位置类 INTPOS
