@@ -23,21 +23,31 @@
   > 表示每1000帧移动的像素
 
 #### 方法
-- 移动 _AerocraftMov  
+- 移动 _AerocraftMove  
   > 描述：单纯延当前方向移动，在里面判断逻辑  
   > 输入：offset AEROCRAFT(目标飞机结构体下标)
   > 输出：NULL
 - 更改朝向 _AerocraftVeer
   > 无输入，自动给两个飞机更改朝向，并置零dwNxt
 - 发射子弹 _AerocraftFire
-  > 描述：在圆心的位置生成子弹。生成
+  > 描述：射出子弹
+  > 输入：飞机地址指针 dd
+  > 输出：eax子弹地址指针
 - 更改武器 _AerocraftChangeWeapon
 - 更改弹药 _AerocraftChangeAmmunition
 - 升级 _AerocraftLevelUp
 - 获得经验 _AerocraftGainExp
+  > 描述：获得经验值，并且返回是否升级。返回值保存在eax中。升级返回1，否则返回0
+  > 输入：飞机的地址指针dd，获得的经验数目dd
+  > 输出：eax
 - 更改当前生命 _AerocraftChangeNowHP
+  > 描述：更改血量，将当前血量直接加上输入。若超过则设置成满血。不进行归零的逻辑判断
+  > 输入：飞机地址指针dd，有符号数dd
+  > 输出：NULL
 - 更改最大生命值 _AerocraftChangeMaxNowHP
+  > 描述：输入输出同上
 - 更改攻击力 _AerocraftChangeAtk
+  > 描述：输入输出同上
 - 更改攻速 _AerocraftChangeAtf
 - 更改口径 _AerocraftChangeCaliber
 - 初始化 _AerocraftInit 
@@ -63,20 +73,32 @@
 
 #### 方法
 - 移动 _BulletMov
-- 初始化 _BulletInit  
-- 析构 _BulletDestroy
+- 初始化 _BulletInit   
+  > 描述：在子弹列表之中寻找空位，分配给新的子弹，其ID为从一开始的数，返回分配的地址。  
+  > 输入：子弹所属的飞机  dd，子弹的速度 dd,子弹的朝向 dd, 子弹的位置 dd，子弹的攻击力 dd  
+  > 输出：子弹类的指针
+- 析构 _BulletDestroy  
+  > 描述：将所传入的子弹ID置为0，设置为无效数据  
+  > 输入：子弹地址指针 dd  
+  > 输出：NULL
 - 判断命中 _BulletHitCheck
-  > 描述：依次调用三个判断函数，命中后跳出
+  > 描述：依次调用三个判断函数，命中后析构子弹类并跳出。若命中输出为1，否则为0，保存在eax中  
+  > 输入：子弹地址指针  
+  > 输出：eax
 - 判断是否命中玩家并进行后续操作 _BulletHitPlayer
-  > 描述：首先判断是否命中。若未命中返回0，否则返回1.命中的话调取子弹析构函数，更改玩家血量并酌情结束游戏。
-  > 输入：offset BULLET
+  > 描述：首先判断是否命中。若未命中返回0，否则返回1.命中的话，更改玩家血量并酌情结束游戏。  
+  > 输入：offset BULLET  
   > 输出：eax
 - 判断是否命中经验包并进行后续操作 _BulletHitExp
-  > 描述：首先判断是否命中。若未命中返回0，命中返回1。命中的话，调取子弹析构函数，更改经验包血量，然后判断是否击杀经验包。若击杀经验包，为子弹发出者进行加经验或升级操作。  
-  > 输入：offset BULLET
+  > 描述：首先判断是否命中。若未命中返回0，命中返回1。命中的话，更改经验包血量，然后判断是否击杀经验包。若击杀经验包，为子弹发出者进行加经验或升级操作。(这里我认为升级操作在加经验函数内进行判断，如果不是 要记得改)  
+  > 输入：offset BULLET  
   > 输出：eax
 - 判断是否命中墙体并进行后续操作 _BulletHitWall
   > 基本同上
+- 移动子弹 _BulletMove
+  > 描述：按照子弹属性进行移动  
+  > 输入：子弹地址指针 dd  
+  > 输出：NULL
 ---
 
 ### 经验包

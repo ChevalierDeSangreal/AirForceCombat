@@ -29,8 +29,10 @@ INITR           equ     20
 INITATK         equ     20
 INITATF         equ     10
 INITCALIBER     equ     5
-BULLETMAXNUM    equ     500            ; 子弹数量上限，也就是子弹池的规模
 INITPLANESPEED  equ     50
+BULLETMAXNUM    equ     500            ; 子弹数量上限，也就是子弹池的规模
+BULLETMAXNUM    equ     500
+BULLETRADIUS    equ     20
 
 INITPACKHP1	    equ     100
 INITPACKHP2		equ     125
@@ -42,6 +44,8 @@ INITPACKR1      equ     10
 INITPACKR2      equ     20
 INITPACKR3      equ     30
 ExpPackMAXNUM	equ		20
+
+
 
 .data?
 hInstance       dd ?
@@ -116,7 +120,7 @@ BULLET struct
 
     dwID        dd 0
     dwAerocraftID dd ?
-    dwSPeed     dd ?
+    dwSpeed     dd ?
     dwForward   dd ?
     dwRadius    dd ?
     stNowPos    POS <>
@@ -141,6 +145,9 @@ EPS             real8   0.000000001
 
 .code
 ; printf	PROTO C : dword, : vararg
+
+;************************************************
+; 以下为一些工具函数
 
 _mod proc C    @x, @y
     local   @output
@@ -554,7 +561,7 @@ _GetaPos proc uses ecx edx esi, @R
 
 _GetaPos endp
 
-_ExpPackInit proc uses eax edx esi ebx ecx, types
+_ExpPackInit proc uses edx esi ebx ecx, types
         local @tmp
     assume esi : ptr ExpPack
     ; 分配内存
@@ -616,7 +623,7 @@ _ExpPackDestroy  proc uses esi,  lpexppack
     ret
 _ExpPackDestroy endp
 
-_ExpPackAttacked proc  uses esi eax, lpexppack,attack
+_ExpPackAttacked proc  uses esi, lpexppack,attack
     assume esi : ptr ExpPack
     mov eax,attack
     mov esi, lpexppack
@@ -625,13 +632,450 @@ _ExpPackAttacked proc  uses esi eax, lpexppack,attack
     assume esi : nothing
     ret
 _ExpPackAttacked endp
-; 经验包扣血
-; _ExpPackAttacked
-; 描述：扣除经验包一定的血量
-; 输入：经验包地址  dd；扣除血量 dd
-; 输出：eax（当前血量）
 
-_AerocraftMov proc uses esi eax, lpAerocraft
+;************************************************
+;以下为子弹类相关函数
+
+
+; *********************************************************************************
+; 首先判断是否命中。若未命中返回0，命中返回1。命中的话，返回
+; 输入：addr BULLET
+; 输出：eax
+; *********************************************************************************
+_BulletHitWall proc C @lpBullet
+    local   @output 
+    local   @Radius, @stPos:POS
+    pushad
+    ; assume  esi: ptr STRUCT
+
+    
+    ; 指针各值赋给局部变量值
+    assume  esi: ptr BULLET
+    mov     esi, @lpBullet
+
+    mov     eax, [esi].dwAerocraftID
+    mov     @AerocraftID, eax
+
+    mov     eax, [esi].dwRadius
+    mov     @Radius, eax
+
+    finit
+    fld     [esi].stNowPos.fX
+    fld     [esi].stNowPos.fY
+    fstp    @stPos.fY
+    fstp    @stPos.fX
+
+    assume  esi: nothing
+    
+    invoke  _CheckCircleEdge, @stPos, @Radius
+    mov     @output, eax
+
+    ; assume  esi: nothing
+; _FunReturn:
+    popad
+    mov     eax, @output
+    ret
+_BulletHitWall endp
+
+_BulletHitPlayer proc C @lpBullet
+    local   @output 
+    local   @atk, @AerocraftID, @Radius, @stPos:POS
+    local   @lpEnemy, @EnemyHP, @EnemyRadius, @stEnemyPos:POS
+    pushad
+
+    ; 指针各值赋给局部变量值
+    assume  esi: ptr BULLET
+    mov     esi, @lpBullet
+
+    mov     eax, [esi].dwAtk
+    mov     @atk, eax
+
+    mov     eax, [esi].dwAerocraftID
+    mov     @AerocraftID, eax
+    .if     @AerocraftID == 1
+        lea     eax, stAerocraft2
+        mov     @lpEnemy, eax
+    .else
+        lea     eax, stAerocraft1
+        mov     @lpEnemy, eax
+    .endif
+
+    mov     eax, [esi].dwRadius
+    mov     @Radius, eax
+
+    finit
+    fld     [esi].stNowPos.fX
+    fld     [esi].stNowPos.fY
+    fstp    @stPos.fY
+    fstp    @stPos.fX
+
+    assume  esi: nothing
+
+    assume  esi: ptr AEROCRAFT
+    mov     esi, @lpEnemy
+
+    mov     eax, [esi].dwHP
+    mov     @EnemyHP, eax
+
+    mov     eax, [esi].dwRadius
+    mov     @EnemyRadius, eax
+
+    finit
+    fld     [esi].stNowPos.fX
+    fld     [esi].stNowPos.fY
+    fstp    @stEnemyPos.fY
+    fstp    @stEnemyPos.fX
+
+    assume  esi: nothing
+
+    ; 判断相交
+    invoke  _CheckCircleCross, @stPos, @Radius, @stEnemyPos, @EnemyRadius
+    .if     eax == 1    ; 相交即命中
+        mov     @output, 1
+        mov     eax, @EnemyHP
+        sub     eax, @atk
+        .if     eax <= 0
+            invoke  _MainGameOver
+        .else
+            invoke  _AerocraftChangeNowHP ; , 谁扣血, 扣多少血@atk
+        .endif
+    .else
+    ;     mov     @output, 0
+    .endif
+
+    popad
+    mov     eax, @output
+    ret
+_BulletHitPlayer endp
+
+_BulletHitExp proc C @lpBullet
+    local   @output, @index 
+    local   @atk, @AerocraftID, @Radius, @stPos:POS
+    local   @ExpHP, @ExpRadius, @stExpPos:POS
+    local   @Exp
+    pushad
+
+    ; 指针各值赋给局部变量值
+    assume  esi: ptr BULLET
+    mov     esi, @lpBullet
+
+    mov     eax, [esi].dwAtk
+    mov     @atk, eax
+
+    mov     eax, [esi].dwAerocraftID
+    mov     @AerocraftID, eax
+
+    mov     eax, [esi].dwRadius
+    mov     @Radius, eax
+
+    finit
+    fld     [esi].stNowPos.fX
+    fld     [esi].stNowPos.fY
+    fstp    @stPos.fY
+    fstp    @stPos.fX
+
+    assume  esi: nothing
+    
+    assume  esi: ptr ExpPack
+    lea     esi, stExpPack
+
+    mov     @output, 0
+    mov     @index, 0
+    .while  @index < ExpPackMAXNUM
+        .if     [esi].dwID == 0
+            .continue
+        .endif
+        mov     eax, [esi].dwHP
+        mov     @ExpHP, eax
+
+        mov     eax, [esi].dwRadius
+        mov     @ExpRadius, eax
+
+        finit
+        fld     [esi].stNowPos.fX
+        fld     [esi].stNowPos.fY
+        fstp    @stExpPos.fY
+        fstp    @stExpPos.fX
+
+        ; 判断相交
+        invoke  _CheckCircleCross, @stPos, @Radius, @stExpPos, @ExpRadius
+        .if     eax == 1
+            mov     @output, 1
+            
+            mov     eax, @ExpHP
+            sub     eax, @atk
+            .if     eax <= 0
+                ; 爆经验力
+                .if     [esi].dwType == 1
+                    mov     @Exp, INITPACKEXP1
+                .elseif     [esi].dwType == 2
+                    mov     @Exp, INITPACKEXP2
+                .else
+                    mov     @Exp, INITPACKEXP3
+                .endif
+                invoke  _AerocraftGainExp, @AerocraftID, @Exp
+                ; 析构
+                invoke  _ExpPackDestroy, esi
+            .else
+                invoke  _ExpPackAttacked, esi, @atk
+            .endif
+            .break
+        .endif
+
+        mov     eax, @index
+        inc     eax
+        mov     @index, eax
+        add     esi, sizeof ExpPack
+    .endw
+    assume  esi: nothing
+
+; _FunReturn:
+    popad
+    mov     eax, @output
+    ret
+_BulletHitExp endp
+
+_BulletDestroy  proc uses esi, lpbullet
+    assume esi : ptr BULLET
+    mov    esi, lpbullet
+    mov    [esi].dwID,0
+    assume esi : nothing
+    ret
+_BulletDestroy endp
+
+_BulletInit proc uses edx esi ebx ecx, dwAerocraftID, dwSpeed, dwForward, lpNowPos, dwAtk
+    assume esi : ptr BULLET
+    ; 分配内存
+    mov    edx, 0
+    lea    esi, stBullets
+    xor    ecx, ecx
+    .while ecx < BULLETMAXNUM
+        inc    ecx
+        mov    eax, [esi].dwID
+        .if eax == 0
+            mov    edx, 1
+            .break
+        .endif
+        add    esi, sizeof BULLET
+    .endw
+
+    .if edx == 1
+        mov    [esi].dwID, ecx
+    .else
+        jmp    endpoint
+    .endif
+    ; 设置各样属性
+    mov    eax, dwAerocraftID
+    mov    [esi].dwAerocraftID,eax
+    mov    eax, dwSpeed
+    mov    [esi].dwSpeed, eax
+    mov    eax, dwForward
+    mov    [esi].dwForward, eax
+    mov    eax, dwAtk
+    mov    [esi].dwAtk, eax
+    assume eax : ptr POS
+    mov    eax, lpNowPos
+    finit
+    fld    [eax].fX   
+    fstp   [esi].stNowPos.fX
+    fld    [eax].fY
+    fstp   [esi].stNowPos.fY
+    assume eax : ptr nothing
+    mov    eax,esi
+endpoint:
+    assume esi : nothing
+    ret
+_BulletInit endp
+
+
+
+_BulletHitCheck proc C @lpBullet
+    local  @output 
+    pushad
+    ; assume  esi: ptr BULLET
+    ; mov     esi, @lpBullet
+    ; assume  esi: nothing
+
+    mov     @output, 0
+
+    invoke  _BulletHitPlayer, @lpBullet
+    mov      @output, eax
+    .if     @output == 1
+        invoke  _BulletDestroy, @lpBullet ; 注意格式
+        jmp     _BulletHitCheckReturn
+    .endif
+
+    invoke  _BulletHitExp, @lpBullet
+    mov      @output, eax
+    .if     @output == 1
+        invoke  _BulletDestroy, @lpBullet
+        jmp     _BulletHitCheckReturn
+    .endif
+
+    invoke  _BulletHitWall, @lpBullet
+    mov      @output, eax
+    .if     @output == 1
+        invoke  _BulletDestroy, @lpBullet
+        jmp     _BulletHitCheckReturn
+    .endif
+
+_BulletHitCheckReturn:
+
+    popad
+    mov     eax, @output
+
+
+    ret
+_BulletHitCheck endp
+
+_BulletMove proc uses eax esi ecx ebx , lpbullet
+    assume esi : ptr BULLET
+    mov    esi, lpbullet
+    mov    ecx, [esi].dwSPeed
+    mov    ebx,10
+    .while ecx!=0
+        dec    ecx
+        invoke _BitMove ebx, [esi].dwForward, addr [esi].stNowPos
+        invoke _BulletHitCheck esi
+        .if eax == 1
+            .break
+        .endif
+    .endw
+    ret
+
+_BulletMove endp
+
+;************************************************
+; 以下为飞机类相关函数
+
+_AerocraftChangeNowHP proc uses eax esi, lpaerocraft,num
+	assume	esi : ptr AEROCRAFT
+	mov		esi	, lpaerocraft
+	mov     eax	, num
+	add		eax	, [esi].dwHP
+	.if     eax	> [esi].dwMaxHP
+		mov    eax	, [esi].dwMaxHP
+	.endif
+	mov		[esi].dwHP	,eax
+	assume	esi : nothing
+	ret
+_AerocraftChangeNowHP  endp
+
+_AerocraftChangeMAXNowHP proc uses eax esi, lpaerocraft, num
+    assume	esi : ptr AEROCRAFT
+    mov		esi, lpaerocraft
+    mov     eax, num
+    add		[esi].dwMaxHP, eax
+    assume	esi : nothing
+    ret
+_AerocraftChangeMAXNowHP  endp
+
+_AerocraftChangeAtk proc uses eax esi, lpaerocraft, num
+    assume	esi : ptr AEROCRAFT
+    mov		esi, lpaerocraft
+    mov     eax, num
+    add		[esi].dwAtk, eax
+    assume	esi : nothing
+    ret
+_AerocraftChangeAtk  endp
+
+_AerocraftChangeGainExp proc uses esi ecx  ebx, lpaerocraft,GainExp
+    assume	esi : ptr AEROCRAFT
+    mov		esi			, lpaerocraft
+    mov		ecx			, GainExp
+    add		[esi].dwExp	,ecx
+    mov     ecx			, [esi].dwLevel
+    mov		ebx         , [esi].dwExp
+    xor		eax         , eax
+    .if		ecx==0
+        .if ebx>=50
+            mov		eax			,1
+            invoke	_AerocraftLevelUp  ,esi
+            sub		ebx			,50
+            mov		[esi].dwExp	,ebx
+        .endif
+    .elseif ecx==1
+        .if ebx>=75
+            mov		eax			,1
+            invoke	_AerocraftLevelUp  ,esi
+            sub		ebx			,75
+            mov		[esi].dwExp	,ebx
+        .endif
+    .elseif ecx==2
+        .if ebx>=100
+            mov		eax			,1
+            invoke	_AerocraftLevelUp  ,esi
+            sub		ebx			,100
+            mov		[esi].dwExp	,ebx
+        .endif
+    .elseif ecx==3
+        .if ebx>=100
+            mov		eax			,1
+            invoke	_AerocraftLevelUp  ,esi
+            sub		ebx			,100
+            mov		[esi].dwExp	,ebx
+        .endif
+    .elseif ecx==4
+        .if ebx>=100
+            mov		eax			,1
+            invoke	_AerocraftLevelUp  ,esi
+            sub		ebx			,100
+            mov		[esi].dwExp	,ebx
+        .endif
+    .elseif ecx==5
+        .if ebx>=100
+            mov		eax			,1
+            invoke	_AerocraftLevelUp  ,esi
+            sub		ebx			,100
+            mov		[esi].dwExp	,ebx
+        .endif
+    .elseif ecx==6
+        .if ebx>=125
+            mov		eax			,1
+            invoke	_AerocraftLevelUp  ,esi
+            sub		ebx			,125
+            mov		[esi].dwExp	,ebx
+        .endif
+    .elseif ecx==7
+        .if ebx>=125
+            mov		eax			,1
+            invoke	_AerocraftLevelUp  ,esi
+            sub		ebx			,125
+            mov		[esi].dwExp	,ebx
+        .endif
+    .elseif ecx==8
+        .if ebx>=125
+            mov		eax			,1
+            invoke	_AerocraftLevelUp  ,esi
+            sub		ebx			,125
+            mov		[esi].dwExp	,ebx
+        .endif
+    .endif
+    assume	esi : nothing
+    ret
+_AerocraftChangeGainExp	endp
+
+_AerocraftLevelUp proc uses esi, lpaerocraft
+    assume	esi : ptr AEROCRAFT
+    mov		esi, lpaerocraft
+    inc     [esi].dwLevel
+    assume	esi : nothing
+    ;?还未解决，怎么实现升级选择
+    ret
+_AerocraftLevelUp endp
+
+_AerocraftVeer proc uses esi eax
+    assume	esi : ptr AEROCRAFT
+    lea		esi, stAerocraft1
+    mov     eax, 0
+    mov     [esi].dwForward, eax
+    lea		esi, stAerocraft2
+    mov     [esi].dwForward, eax
+    assume	esi : nothing
+    ret
+_AerocraftVeer  endp
+
+_AerocraftMove proc uses esi eax, lpAerocraft
         local forward
 
     assume esi:ptr AEROCRAFT
@@ -663,7 +1107,7 @@ _AerocraftMov proc uses esi eax, lpAerocraft
     assume esi:nothing
     ret
 
-_AerocraftMov endp
+_AerocraftMove endp
 
 _AerocraftInit proc
         local @tmp
@@ -890,8 +1334,8 @@ _MainKeyboard endp
 
 _MainFrame proc
 
-    invoke _AerocraftMov, addr stAerocraft1
-    invoke _AerocraftMov, addr stAerocraft2
+    invoke _AerocraftMove, addr stAerocraft1
+    invoke _AerocraftMove, addr stAerocraft2
 
 
     ret

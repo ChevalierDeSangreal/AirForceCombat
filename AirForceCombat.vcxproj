@@ -164,6 +164,7 @@
     <Image Include="Back1.bmp" />
     <Image Include="Back2.bmp" />
     <Image Include="Main.ico" />
+    <Image Include="Plane.bmp" />
     <Image Include="tmpPlane.bmp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
