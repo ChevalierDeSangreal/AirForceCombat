@@ -1,8 +1,9 @@
 ﻿  Assembling AirForceCombat.asm...
-AirForceCombat.asm(51): warning A4014: instructions and initialized data not supported in BSS segments
-AirForceCombat.asm(428): warning A6004: procedure argument or local not referenced : @tmp1
-AirForceCombat.asm(428): warning A6004: procedure argument or local not referenced : @tmp2
-AirForceCombat.asm(428): warning A6004: procedure argument or local not referenced : @tmp4
-AirForceCombat.asm(852): warning A6004: procedure argument or local not referenced : @hDC
-AirForceCombat.asm(934): warning A6004: procedure argument or local not referenced : @char
-  AirForceCombat.vcxproj -> D:\Project\AL\AirForceCombat\Debug\AirForceCombat.exe
+AirForceCombat.asm(55): warning A4014: instructions and initialized data not supported in BSS segments
+AirForceCombat.asm(437): warning A6004: procedure argument or local not referenced : @tmp1
+AirForceCombat.asm(437): warning A6004: procedure argument or local not referenced : @tmp2
+AirForceCombat.asm(437): warning A6004: procedure argument or local not referenced : @tmp4
+AirForceCombat.asm(1301): warning A6004: procedure argument or local not referenced : @hDC
+AirForceCombat.asm(1360): warning A6004: procedure argument or local not referenced : char
+AirForceCombat.asm(1403): warning A6004: procedure argument or local not referenced : @char
+  AirForceCombat.vcxproj -> C:\Users\LNG\Source\Repos\ChevalierDeSangreal\AirForceCombat\Debug\AirForceCombat.exe

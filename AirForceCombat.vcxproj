@@ -85,7 +85,7 @@
       <OutputFile>$(OutDir)$(TargetName)$(TargetExt)</OutputFile>
     </Link>
     <MASM>
-      <IncludePaths>D:\masm32\include;%(IncludePaths)</IncludePaths>
+      <IncludePaths>C:\masm32\include;%(IncludePaths)</IncludePaths>
     </MASM>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">

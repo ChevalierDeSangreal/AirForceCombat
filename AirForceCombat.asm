@@ -137,13 +137,15 @@ stAerocraft1    AEROCRAFT <>
 stAerocraft2    AEROCRAFT <>
 stBullets       BULLET BULLETMAXNUM dup(<>)
 stExpPack       ExpPack ExpPackMAXNUM dup(<>)
-
-
+_AerocraftLevelUp proto lpaerocraft:dword
+_AerocraftGainExp proto lpaerocraft:dword, GainExp:dword
+_AerocraftChangeNowHP proto lpaerocraft:dword, num:dword
 .const
 szClassName     db      'Clock', 0
 EPS             real8   0.000000001
 
 .code
+
 ; printf	PROTO C : dword, : vararg
 
 ;************************************************
@@ -643,7 +645,7 @@ _ExpPackAttacked endp
 ; 输出：eax
 ; *********************************************************************************
 _BulletHitWall proc C @lpBullet
-    local   @output 
+    local   @output, @AerocraftID
     local   @Radius, @stPos:POS
     pushad
     ; assume  esi: ptr STRUCT
@@ -734,11 +736,14 @@ _BulletHitPlayer proc C @lpBullet
         mov     @output, 1
         mov     eax, @EnemyHP
         sub     eax, @atk
-        .if     eax <= 0
-            invoke  _MainGameOver
-        .else
-            invoke  _AerocraftChangeNowHP ; , 谁扣血, 扣多少血@atk
-        .endif
+        ;.if     eax <= 0
+        ;   invoke  _MainGameOver
+        ;.else
+            xor eax, eax
+            sub eax, @atk
+            mov @atk,eax
+            invoke  _AerocraftChangeNowHP ,@lpEnemy,@atk; , 谁扣血, 扣多少血@atk
+        ;.endif
     .else
     ;     mov     @output, 0
     .endif
@@ -931,12 +936,12 @@ _BulletHitCheck endp
 _BulletMove proc uses eax esi ecx ebx , lpbullet
     assume esi : ptr BULLET
     mov    esi, lpbullet
-    mov    ecx, [esi].dwSPeed
+    mov    ecx, [esi].dwSpeed
     mov    ebx,10
     .while ecx!=0
         dec    ecx
-        invoke _BitMove ebx, [esi].dwForward, addr [esi].stNowPos
-        invoke _BulletHitCheck esi
+        invoke _BitMove ,ebx, [esi].dwForward, addr [esi].stNowPos
+        invoke _BulletHitCheck ,esi
         .if eax == 1
             .break
         .endif
@@ -979,7 +984,7 @@ _AerocraftChangeAtk proc uses eax esi, lpaerocraft, num
     ret
 _AerocraftChangeAtk  endp
 
-_AerocraftChangeGainExp proc uses esi ecx  ebx, lpaerocraft,GainExp
+_AerocraftGainExp proc uses esi ecx  ebx, lpaerocraft,GainExp
     assume	esi : ptr AEROCRAFT
     mov		esi			, lpaerocraft
     mov		ecx			, GainExp
@@ -990,72 +995,72 @@ _AerocraftChangeGainExp proc uses esi ecx  ebx, lpaerocraft,GainExp
     .if		ecx==0
         .if ebx>=50
             mov		eax			,1
-            invoke	_AerocraftLevelUp  ,esi
+            invoke	_AerocraftLevelUp   ,esi
             sub		ebx			,50
             mov		[esi].dwExp	,ebx
         .endif
     .elseif ecx==1
         .if ebx>=75
             mov		eax			,1
-            invoke	_AerocraftLevelUp  ,esi
+            invoke	_AerocraftLevelUp   ,esi
             sub		ebx			,75
             mov		[esi].dwExp	,ebx
         .endif
     .elseif ecx==2
         .if ebx>=100
             mov		eax			,1
-            invoke	_AerocraftLevelUp  ,esi
+            invoke	_AerocraftLevelUp   ,esi
             sub		ebx			,100
             mov		[esi].dwExp	,ebx
         .endif
     .elseif ecx==3
         .if ebx>=100
             mov		eax			,1
-            invoke	_AerocraftLevelUp  ,esi
+            invoke	_AerocraftLevelUp   ,esi
             sub		ebx			,100
             mov		[esi].dwExp	,ebx
         .endif
     .elseif ecx==4
         .if ebx>=100
             mov		eax			,1
-            invoke	_AerocraftLevelUp  ,esi
+            invoke	_AerocraftLevelUp   ,esi
             sub		ebx			,100
             mov		[esi].dwExp	,ebx
         .endif
     .elseif ecx==5
         .if ebx>=100
             mov		eax			,1
-            invoke	_AerocraftLevelUp  ,esi
+            invoke	_AerocraftLevelUp   ,esi
             sub		ebx			,100
             mov		[esi].dwExp	,ebx
         .endif
     .elseif ecx==6
         .if ebx>=125
             mov		eax			,1
-            invoke	_AerocraftLevelUp  ,esi
+            invoke	_AerocraftLevelUp   ,esi
             sub		ebx			,125
             mov		[esi].dwExp	,ebx
         .endif
     .elseif ecx==7
         .if ebx>=125
             mov		eax			,1
-            invoke	_AerocraftLevelUp  ,esi
+            invoke	_AerocraftLevelUp   ,esi
             sub		ebx			,125
             mov		[esi].dwExp	,ebx
         .endif
     .elseif ecx==8
         .if ebx>=125
             mov		eax			,1
-            invoke	_AerocraftLevelUp  ,esi
+            invoke	_AerocraftLevelUp   ,esi
             sub		ebx			,125
             mov		[esi].dwExp	,ebx
         .endif
     .endif
     assume	esi : nothing
     ret
-_AerocraftChangeGainExp	endp
+_AerocraftGainExp	endp
 
-_AerocraftLevelUp proc uses esi, lpaerocraft
+_AerocraftLevelUp proc uses esi ,lpaerocraft
     assume	esi : ptr AEROCRAFT
     mov		esi, lpaerocraft
     inc     [esi].dwLevel
@@ -1258,82 +1263,104 @@ _ShowMakerFirstPaint proc uses eax
 _ShowMakerFirstPaint endp
 
 _ShowMakerPaint proc
-        local @hDC
-        local @x, @y, @Plane1D
+local @hDC
+local @x, @y, @Plane1D
 
-    mov    eax, stAerocraft1.dwRadius
-    mov    @Plane1D, eax
-    add    @Plane1D, eax
+mov    eax, stAerocraft1.dwRadius
+mov    @Plane1D, eax
+add    @Plane1D, eax
 
-    invoke CreatePatternBrush, stShowMaker.hBmpBack
-    invoke SelectObject, stShowMaker.hDCFinal, eax
-    invoke PatBlt, stShowMaker.hDCFinal, 0, 0, MAP_HIDTH, MAP_WIDTH, PATCOPY
-    invoke DeleteObject, eax
+invoke CreatePatternBrush, stShowMaker.hBmpBack
+invoke SelectObject, stShowMaker.hDCFinal, eax
+invoke PatBlt, stShowMaker.hDCFinal, 0, 0, MAP_HIDTH, MAP_WIDTH, PATCOPY
+invoke DeleteObject, eax
 
-    finit
-    ; 绘制飞机1
-    fld    stAerocraft1.stNowPos.fX
-    fist   @x
-    fld    stAerocraft1.stNowPos.fY
-    fist   @y 
-    mov    eax, stAerocraft1.dwRadius
-    sub    @x, eax
-    sub    @y, eax
-    invoke StretchBlt, stShowMaker.hDCFinal, @x, @y, @Plane1D, @Plane1D, stAerocraft1.hDC, 0, 0, 150, 150, SRCAND
+finit
+; 绘制飞机1
+fld    stAerocraft1.stNowPos.fX
+fist   @x
+fld    stAerocraft1.stNowPos.fY
+fist   @y
+mov    eax, stAerocraft1.dwRadius
+sub    @x, eax
+sub    @y, eax
+invoke StretchBlt, stShowMaker.hDCFinal, @x, @y, @Plane1D, @Plane1D, stAerocraft1.hDC, 0, 0, 150, 150, SRCAND
 
 
-    ; 绘制飞机2
-    fld    stAerocraft2.stNowPos.fX
-    fist   @x
-    fld    stAerocraft2.stNowPos.fY
-    fist   @y 
-    mov    eax, stAerocraft2.dwRadius
-    sub    @x, eax
-    sub    @y, eax
-    invoke StretchBlt, stShowMaker.hDCFinal, @x, @y, @Plane1D, @Plane1D, stAerocraft1.hDC, 0, 0, 150, 150, SRCAND
+; 绘制飞机2
+fld    stAerocraft2.stNowPos.fX
+fist   @x
+fld    stAerocraft2.stNowPos.fY
+fist   @y
+mov    eax, stAerocraft2.dwRadius
+sub    @x, eax
+sub    @y, eax
+invoke StretchBlt, stShowMaker.hDCFinal, @x, @y, @Plane1D, @Plane1D, stAerocraft1.hDC, 0, 0, 150, 150, SRCAND
 
-    ret
+ret
 _ShowMakerPaint endp
 
 _ShowMakerInit proc
 
-    ; 创建窗口
-    invoke SetWindowRgn, hWinMain, eax, TRUE
-    invoke SetWindowPos, hWinMain, HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE OR SWP_NOSIZE
+; 创建窗口
+invoke SetWindowRgn, hWinMain, eax, TRUE
+invoke SetWindowPos, hWinMain, HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE OR SWP_NOSIZE
 
 
-    invoke _ShowMakerFirstPaint
+invoke _ShowMakerFirstPaint
 
-    invoke SetTimer, hWinMain, ID_TIMER, 20, NULL
+invoke SetTimer, hWinMain, ID_TIMER, 20, NULL
 
-    ret
+ret
 _ShowMakerInit endp
 
 _MainKeyboard proc char
 
-    .if char == 'w'
-        mov stAerocraft1.dwNxt, 1
-    .elseif char == 's'
-        mov stAerocraft1.dwNxt, 2
-    .elseif char == 'a'
-        mov stAerocraft1.dwNxt, 3
-    .elseif char == 'd'
-        mov stAerocraft1.dwNxt, 4
-    .elseif char == 'i'
-        mov stAerocraft2.dwNxt, 1
-    .elseif char == 'k'
-        mov stAerocraft2.dwNxt, 2
-    .elseif char == 'j'
-        mov stAerocraft2.dwNxt, 3
-    .elseif char == 'l'
-        mov stAerocraft2.dwNxt, 4
-    .endif
+invoke GetKeyState, 'w'
+.if ah == 1
+mov stAerocraft1.dwNxt, 1
+.endif
 
-    ret
+invoke GetKeyState, 's'
+.if ah == 1
+mov stAerocraft1.dwNxt, 2
+.endif
+
+invoke GetKeyState, 'a'
+.if ah == 1
+mov stAerocraft1.dwNxt, 3
+.endif
+
+invoke GetKeyState, 'd'
+.if ah == 1
+mov stAerocraft1.dwNxt, 4
+.endif
+
+invoke GetKeyState, 'i'
+.if ah == 1
+mov stAerocraft2.dwNxt, 1
+.endif
+
+invoke GetKeyState, 'k'
+.if ah == 1
+mov stAerocraft2.dwNxt, 2
+.endif
+
+invoke GetKeyState, 'j'
+.if ah == 1
+mov stAerocraft2.dwNxt, 3
+.endif
+
+invoke GetKeyState, 'l'
+.if ah == 1
+mov stAerocraft2.dwNxt, 4
+.endif
+
+ret
 _MainKeyboard endp
 
 _MainFrame proc
-
+    ; invoke _MainFrame
     invoke _AerocraftMove, addr stAerocraft1
     invoke _AerocraftMove, addr stAerocraft2
 
@@ -1359,8 +1386,6 @@ _ProcWinMain proc uses ebx edi esi, hWnd, uMsg, wParam, lParam
         sub    ecx, @stPs.rcPaint.top
         invoke BitBlt, @hDC, @stPs.rcPaint.left, @stPs.rcPaint.top, eax, ecx, stShowMaker.hDCFinal, @stPs.rcPaint.left, @stPs.rcPaint.top, SRCCOPY
         invoke EndPaint, hWnd, addr @stPs
-    .elseif eax == WM_CHAR
-        invoke _MainKeyboard, wParam
     .elseif eax == WM_CREATE
         mov   eax, hWnd
         mov   hWinMain, eax

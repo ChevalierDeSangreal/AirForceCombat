@@ -23,7 +23,7 @@ CommandLine LPSTR ?
 start: 
     invoke GetModuleHandle, NULL 
     mov    hInstance,eax 
-   invoke GetCommandLine
+    invoke GetCommandLine
     mov CommandLine,eax
     invoke WinMain, hInstance,NULL,CommandLine, SW_SHOWDEFAULT 
     invoke ExitProcess,eax 
