@@ -662,7 +662,7 @@ _ExpPackInit proc uses edx esi ebx ecx, types
         mov    [esi].dwID, ecx
     .else
         ; invoke printf, offset inputmsg1
-        jmp    endpoint
+        jmp    @F
     .endif
         ; 根据等级分配血量
 
@@ -697,7 +697,7 @@ _ExpPackInit proc uses edx esi ebx ecx, types
     fild   @tmp
     fstp   [esi].stNowPos.fY
     mov    eax, esi
-endpoint:
+@@:
     assume esi : nothing
     ret
 _ExpPackInit endp
@@ -1053,8 +1053,15 @@ _BulletHitExp proc uses esi, @lpBullet
                 .else
                     mov     @Exp, INITPACKEXP3
                 .endif
-                invoke  _AerocraftGainExp, @AerocraftID, @Exp
+                push eax
+                .if @AerocraftID==1
+                    lea eax, stAerocraft1
+                .else
+                    lea eax, stAerocraft2
+                .endif
+                invoke  _AerocraftGainExp, eax, @Exp
                 ; 析构
+                pop eax
                 invoke  _ExpPackDestroy, esi
             .else
                 invoke  _ExpPackAttacked, esi, @atk
