@@ -236,7 +236,6 @@ _RandSetSeed proc C
     shr     eax, 16
     AND     eax, 7fffH
 	mov		dwRandSeed, eax
-
     popad
     ret
 _RandSetSeed endp
@@ -530,8 +529,9 @@ _BitMove proc uses eax edx ecx, len, dir, lpPos
     fld   @y_step
     fild  len
     fmul
+    fstp  @y_step
     fld   [ecx].fY
-    fadd
+    fsub  @y_step
     fstp  [ecx].fY                       ;计算现在位置
     assume ecx:nothing
 
@@ -908,6 +908,7 @@ _BulletHitWall proc uses esi, @lpBullet
     assume  esi: nothing
     
     invoke  _CheckCircleEdge, @stPos, @Radius
+    xor     eax     ,1
     mov     @output, eax
 
     ; assume  esi: nothing
@@ -1572,6 +1573,7 @@ _ShowMakerPaint proc uses eax ecx esi
     lea    esi, stBullets
     .while ecx < BULLETMAXNUM
         inc    ecx
+        push   ecx
         .if [esi].dwID == 0
             .continue
         .endif
@@ -1590,6 +1592,7 @@ _ShowMakerPaint proc uses eax ecx esi
         invoke StretchBlt, stShowMaker.hDCFinal, @x, @y, @D, @D, stShowMaker.hBulletDC0, 0, 0, BULLETBMPHIDTH, BULLETBMPWIDTH, SRCAND
         
         add    esi, sizeof BULLET
+        pop    ecx
     .endw
     assume esi:nothing
 
@@ -1672,12 +1675,12 @@ _MainKeyboard proc
         local @outs:dword
     invoke GetKeyState, 'W'
     .if ah
-        mov    stAerocraft1.dwNxt, 1
+        mov    stAerocraft1.dwNxt, 2
     .endif
 
     invoke GetKeyState, 'S'
     .if ah
-        mov    stAerocraft1.dwNxt, 2
+        mov    stAerocraft1.dwNxt, 1
     .endif
 
     invoke GetKeyState, 'A'
@@ -1692,12 +1695,12 @@ _MainKeyboard proc
 
     invoke GetKeyState, 'I'
     .if ah
-        mov    stAerocraft2.dwNxt, 1
+        mov    stAerocraft2.dwNxt, 2
     .endif
 
     invoke GetKeyState, 'K'
     .if ah
-        mov    stAerocraft2.dwNxt, 2
+        mov    stAerocraft2.dwNxt, 1
     .endif
 
     invoke GetKeyState, 'J'
@@ -1716,15 +1719,15 @@ _MainKeyboard endp
 _MainFrame proc uses eax esi ecx
 
     ;发射子弹
-    ; inc    dwAttackSpeed
-    ; mov    eax, 10
-    ; .if    eax < dwAttackSpeed
-    ;     mov    eax, 0
-    ;     mov    dwAttackSpeed, eax
-    ;     invoke _AerocraftFire, addr stAerocraft1
-    ;     invoke _AerocraftFire, addr stAerocraft2
-    ;     invoke printf, addr msg1
-    ; .endif
+     ;inc    dwAttackSpeed
+     ;mov    eax, 10
+     ;.if    eax < dwAttackSpeed
+     ;   invoke _AerocraftFire, addr stAerocraft1
+     ;    invoke _AerocraftFire, addr stAerocraft2
+     ;    invoke printf, addr msg1
+     ;   mov    eax, 0
+     ;   mov    dwAttackSpeed, eax
+     ;.endif
     inc    stAerocraft1.dwFireStamp
     mov    eax, stAerocraft1.dwAtf
     .if stAerocraft1.dwFireStamp >= eax
