@@ -220,11 +220,13 @@
 #### 属性
 - 背景图片的位图句柄 dd hBmpBack
 - 背景图片的绘图句柄 dd hDCBack
-- 子弹类型0的绘图句柄 dd hBulletDC0
+- 子弹类型0的绘图句柄 dd hBulletDC1
+- dd hBulletDC2
 - 经验包类型1的绘图句柄 dd hExpDC1
 - 经验包类型2的绘图句柄 dd hExpDC2
 - 经验包类型3的绘图句柄 dd hExpDC3
-- dd hBulletBmp0
+- dd hBulletBmp1
+- dd hBulletBmp2
 - dd hExpBmp1
 - dd hExpBmp2
 - dd hExpBmp3

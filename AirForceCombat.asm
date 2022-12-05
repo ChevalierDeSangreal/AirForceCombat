@@ -21,23 +21,26 @@ MAP_HIDTH       equ     500
 MAP_WIDTH       equ     500
 
 ; 图片大小常数
-PLANEBMPHIDTH   equ     100
-PLANEBMPWIDTH   equ     100
-BULLETBMPHIDTH  equ     150
-BULLETBMPWIDTH  equ     150
-EXPBMPHIDTH     equ     95
-EXPBMPWIDTH     equ     97
-BARRIERBMPHIDTH equ     100
-BARRIERBMPWIDTH equ     100
+PLANEBMPHIDTH   equ     128
+PLANEBMPWIDTH   equ     128
+BULLETBMPHIDTH  equ     128
+BULLETBMPWIDTH  equ     128
+EXPBMPHIDTH     equ     128
+EXPBMPWIDTH     equ     128
+BARRIERBMPHIDTH equ     128
+BARRIERBMPWIDTH equ     128
 
 ICO_MAIN        equ     100
 IDC_MAIN        equ     100
 IDC_MOVE        equ     101
-IDB_BACK        equ     100
-IDB_PLANE       equ     101
-IDB_BULLET      equ     102
-IDB_EXP         equ     103
-IDB_BRRIER      equ     104
+IDB_MASK        equ     100
+IDB_BACK        equ     101
+IDB_PLANE       equ     102
+IDB_BULLET      equ     103
+IDB_EXP         equ     104
+IDB_BRRIER      equ     105
+IDB_PLANE2      equ     106
+IDB_BULLET2     equ     107
 ID_TIMER        equ     1
 
 INITHP          equ     1000
@@ -48,7 +51,7 @@ INITCALIBER     equ     5
 INITBULLETSPEED equ     1
 INITPLANESPEED  equ     50
 BULLETMAXNUM    equ     500   
-BARRIERMAXNUM   equ     20; 子弹数量上限，也就是子弹池的规模
+BARRIERMAXNUM   equ     5; 子弹数量上限，也就是子弹池的规模
 BULLETRADIUS    equ     20
 
 
@@ -138,23 +141,27 @@ INTPOS struct
 
 INTPOS ends
 
-ShowMaker struct
+SHOWMAKER struct
 
     hBmpFinal   dd ?
     hDCFinal    dd ?
     hBmpBack    dd ?
-    hBulletDC0  dd ?
+    hBulletDC1  dd ?
+    hBulletDC2  dd ?
     hExpDC1     dd ?
     hExpDC2     dd ?
     hExpDC3     dd ?
-    hBulletBmp0 dd ?
+    hBulletBmp1 dd ?
+    hBulletBmp2 dd ?
     hExpBmp1    dd ?
     hExpBmp2    dd ?
     hExpBmp3    dd ?
     hBarrierBmp dd ?
     hBarrierDC  dd ?
+    hBmpMask    dd ?
+    hDCMask     dd ?
 
-ShowMaker ends
+SHOWMAKER ends
 
 AEROCRAFT struct
 
@@ -169,7 +176,7 @@ AEROCRAFT struct
     dwAtk       dd ?
     dwAtf       dd ?
     dwCaliber   dd ?
-    dwWeaponType dd ?
+    dwWeaponType dd 0
     dwAmmunition dd ?
     hBmp        dd ?
     hDC         dd ?
@@ -199,7 +206,7 @@ BULLET ends
 
 dwRandSeed      dd 0
 stMain          MAIN <>
-stShowMaker     ShowMaker <>
+stShowMaker     SHOWMAKER <>
 stAerocraft1    AEROCRAFT <>
 stAerocraft2    AEROCRAFT <>
 stBullets       BULLET BULLETMAXNUM dup(<>)
@@ -633,7 +640,28 @@ _GetaPos proc uses ecx edx esi, @R
         .if edx == 0
             .continue
         .endif
+        ; 障碍物表
+        mov    edx, 1
+        lea    esi, stBarrier
+        assume esi:ptr BARRIER
+        xor    ecx, ecx
+        .while ecx < BARRIERMAXNUM
+            mov    eax, [esi].dwID
+            .if eax != 0
+                invoke _CheckCircleCross, @pos, @R, [esi].stNowPos, [esi].dwRadius
+                .if eax
+                    xor    edx, edx
+                    .break
+                .endif
+            .endif
+            inc    ecx
+            add    esi, sizeof BARRIER
+        .endw
+        assume esi:nothing
 
+        .if edx == 0
+            .continue
+        .endif
         ; 若一号机位置已被确定
         .if stAerocraft1.dwID != 0
             invoke _CheckCircleCross, @pos, @R, stAerocraft1.stNowPos, stAerocraft1.dwRadius
@@ -660,7 +688,7 @@ _GetaPos proc uses ecx edx esi, @R
 _GetaPos endp
 ; ************************************************
 ; 以下为障碍物相关函数
-_BarrierInit   proc uses edx esi ebx ecx, types
+_BarrierInit   proc uses edx esi ebx ecx 
 local @tmp
 assume esi : ptr BARRIER
 ; 分配内存
@@ -1460,7 +1488,7 @@ _BulletHitCheckReturn :
 _BulletMove proc uses  esi ecx ebx , lpbullet
     inc dwBulletSpeedlimit
     mov eax, dwBulletSpeedlimit
-    .if eax>=10
+    .if eax>=30
         mov dwBulletSpeedlimit,0
          ret
     .endif
@@ -1668,6 +1696,13 @@ _AerocraftMove proc uses esi eax, lpAerocraft
         mov     forward, eax
         invoke _BitMove, [esi].dwSpeed, forward, addr[esi].stNowPos
         .endif
+    invoke _PlayerHitBarrier ,esi
+        .if eax == 1
+            add     forward, 18000
+            invoke  _mod, forward, 36000
+            mov     forward, eax
+            invoke _BitMove, [esi].dwSpeed, forward, addr[esi].stNowPos
+        .endif
     assume esi:nothing
     ret
 
@@ -1731,10 +1766,41 @@ _AerocraftInit proc
     ret
 _AerocraftInit endp
 
-_AerocraftFire proc uses esi lpAerocraft
+_AerocraftFire proc uses esi ebx,lpAerocraft
+    local @forward:dword
     assume  esi : ptr AEROCRAFT
     mov     esi, lpAerocraft
-    invoke  _BulletInit, esi
+    .if [esi].dwWeaponType==0
+        invoke  _BulletInit, esi
+    .elseif [esi].dwWeaponType == 1
+        invoke  _BulletInit, esi
+        mov ebx, [esi].dwForward
+        mov @forward,ebx
+        add @forward,18000
+        invoke _mod, @forward, 36000
+        mov [esi].dwForward,eax
+        invoke  _BulletInit, esi
+        mov[esi].dwForward, ebx
+    .elseif[esi].dwWeaponType == 2
+        invoke  _BulletInit, esi
+        mov ebx, [esi].dwForward
+        mov @forward, ebx
+        add @forward, 9000
+        invoke _mod, @forward, 36000
+        mov[esi].dwForward, eax
+        invoke  _BulletInit, esi
+        mov @forward, ebx
+        add @forward, 18000
+        invoke _mod, @forward, 36000
+        mov[esi].dwForward, eax
+        invoke  _BulletInit, esi
+        mov @forward, ebx
+        add @forward, 27000
+        invoke _mod, @forward, 36000
+        mov[esi].dwForward, eax
+        invoke  _BulletInit, esi
+        mov[esi].dwForward, ebx
+    .endif
     assume  esi : nothing
     ret
 _AerocraftFire  endp
@@ -1745,6 +1811,7 @@ _MainInit proc
     mov    stMain.dwWeaponStamp, 0
 
     invoke _RandSetSeed
+    invoke _BarrierInit
     invoke _AerocraftInit
 
 
@@ -1761,19 +1828,23 @@ _ShowMakerDestroy proc
     invoke DeleteDC, stAerocraft1.hDC
     invoke DeleteDC, stAerocraft2.hDC
     invoke DeleteDC, stShowMaker.hDCFinal
-    invoke DeleteDC, stShowMaker.hBulletDC0
+    invoke DeleteDC, stShowMaker.hBulletDC1
+    invoke DeleteDC, stShowMaker.hBulletDC2
     invoke DeleteDC, stShowMaker.hExpDC1
     invoke DeleteDC, stShowMaker.hExpDC2
     invoke DeleteDC, stShowMaker.hExpDC3
     invoke DeleteDC, stShowMaker.hBarrierDC
+    invoke DeleteDC, stShowMaker.hDCMask
     invoke DeleteObject, stShowMaker.hBmpFinal
     invoke DeleteObject, stAerocraft1.hBmp
     invoke DeleteObject, stAerocraft2.hBmp
-    invoke DeleteObject, stShowMaker.hBulletBmp0
+    invoke DeleteObject, stShowMaker.hBulletBmp1
+    invoke DeleteObject, stShowMaker.hBulletBmp2
     invoke DeleteObject, stShowMaker.hExpBmp1
     invoke DeleteObject, stShowMaker.hExpBmp2
     invoke DeleteObject, stShowMaker.hExpBmp3
     invoke DeleteObject, stShowMaker.hBarrierBmp
+    invoke DeleteObject, stShowMaker.hBmpMask
     ; <<<<<删除完成
 
     ret
@@ -1827,13 +1898,17 @@ _ShowMakerFirstPaint proc uses eax
     invoke CreateCompatibleDC, @hDC
     mov    stAerocraft2.hDC, eax
     invoke CreateCompatibleDC, @hDC
-    mov    stShowMaker.hBulletDC0, eax
+    mov    stShowMaker.hBulletDC1, eax
+    invoke CreateCompatibleDC, @hDC
+    mov    stShowMaker.hBulletDC2, eax
     invoke CreateCompatibleDC, @hDC
     mov    stShowMaker.hExpDC1, eax
     invoke CreateCompatibleDC, @hDC
     mov    stShowMaker.hExpDC2, eax
     invoke CreateCompatibleDC, @hDC
     mov    stShowMaker.hExpDC3, eax
+    invoke CreateCompatibleDC, @hDC
+    mov    stShowMaker.hDCMask, eax
     invoke CreateCompatibleDC, @hDC
     mov    stShowMaker.hBarrierDC, eax
     invoke CreateCompatibleBitmap, @hDC, MAP_HIDTH, MAP_WIDTH
@@ -1844,10 +1919,12 @@ _ShowMakerFirstPaint proc uses eax
     mov    stShowMaker.hBmpBack, eax
     invoke LoadBitmap, hInstance, IDB_PLANE
     mov    stAerocraft1.hBmp, eax
-    invoke LoadBitmap, hInstance, IDB_PLANE
+    invoke LoadBitmap, hInstance, IDB_PLANE2
     mov    stAerocraft2.hBmp, eax
     invoke LoadBitmap, hInstance, IDB_BULLET
-    mov    stShowMaker.hBulletBmp0, eax
+    mov    stShowMaker.hBulletBmp1, eax
+    invoke LoadBitmap, hInstance, IDB_BULLET2
+    mov    stShowMaker.hBulletBmp2, eax
     invoke LoadBitmap, hInstance, IDB_EXP
     mov    stShowMaker.hExpBmp1, eax
     invoke LoadBitmap, hInstance, IDB_EXP
@@ -1856,15 +1933,19 @@ _ShowMakerFirstPaint proc uses eax
     mov    stShowMaker.hExpBmp3, eax
     invoke LoadBitmap, hInstance, IDB_BRRIER
     mov    stShowMaker.hBarrierBmp, eax
+    invoke LoadBitmap, hInstance, IDB_MASK
+    mov    stShowMaker.hBmpMask, eax
 
     invoke SelectObject, stAerocraft1.hDC, stAerocraft1.hBmp
     invoke SelectObject, stAerocraft2.hDC, stAerocraft2.hBmp
     invoke SelectObject, stShowMaker.hDCFinal, stShowMaker.hBmpFinal
-    invoke SelectObject, stShowMaker.hBulletDC0, stShowMaker.hBulletBmp0
+    invoke SelectObject, stShowMaker.hBulletDC1, stShowMaker.hBulletBmp1
+    invoke SelectObject, stShowMaker.hBulletDC2, stShowMaker.hBulletBmp2
     invoke SelectObject, stShowMaker.hExpDC1, stShowMaker.hExpBmp1
     invoke SelectObject, stShowMaker.hExpDC2, stShowMaker.hExpBmp2
     invoke SelectObject, stShowMaker.hExpDC3, stShowMaker.hExpBmp3
     invoke SelectObject, stShowMaker.hBarrierDC, stShowMaker.hBarrierBmp
+    invoke SelectObject, stShowMaker.hDCMask, stShowMaker.hBmpMask
 
 
     ; 绘制背景
@@ -1950,7 +2031,12 @@ _ShowMakerPaint proc uses eax ecx esi
         mov    eax, [esi].dwRadius
         sub    @x, eax
         sub    @y, eax
-        invoke StretchBlt, stShowMaker.hDCFinal, @x, @y, @D, @D, stShowMaker.hBulletDC0, 0, 0, BULLETBMPHIDTH, BULLETBMPWIDTH, SRCAND
+        .if [esi].dwAerocraftID == 1
+            invoke StretchBlt, stShowMaker.hDCFinal, @x, @y, @D, @D, stShowMaker.hBulletDC1, 0, 0, BULLETBMPHIDTH, BULLETBMPWIDTH, SRCAND
+        .endif
+        .if [esi].dwAerocraftID == 2
+            invoke StretchBlt, stShowMaker.hDCFinal, @x, @y, @D, @D, stShowMaker.hBulletDC2, 0, 0, BULLETBMPHIDTH, BULLETBMPWIDTH, SRCAND
+        .endif
 @@:
         add    esi, sizeof BULLET
         pop    ecx

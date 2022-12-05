@@ -27,9 +27,6 @@
     <None Include="tmp.asm">
       <Filter>源文件</Filter>
     </None>
-    <None Include="Main.cur">
-      <Filter>资源文件</Filter>
-    </None>
     <None Include="Move.cur">
       <Filter>资源文件</Filter>
     </None>
@@ -58,16 +55,37 @@
     </MASM>
   </ItemGroup>
   <ItemGroup>
+    <Image Include="Main.ico">
+      <Filter>资源文件</Filter>
+    </Image>
+    <Image Include="Back.bmp">
+      <Filter>资源文件</Filter>
+    </Image>
     <Image Include="Back1.bmp">
       <Filter>资源文件</Filter>
     </Image>
     <Image Include="Back2.bmp">
       <Filter>资源文件</Filter>
     </Image>
-    <Image Include="Main.ico">
+    <Image Include="Barrier.bmp">
       <Filter>资源文件</Filter>
     </Image>
-    <Image Include="Plane.bmp">
+    <Image Include="Bullet1.bmp">
+      <Filter>资源文件</Filter>
+    </Image>
+    <Image Include="Bullet2.bmp">
+      <Filter>资源文件</Filter>
+    </Image>
+    <Image Include="Exp.bmp">
+      <Filter>资源文件</Filter>
+    </Image>
+    <Image Include="Mask.bmp">
+      <Filter>资源文件</Filter>
+    </Image>
+    <Image Include="Plane1.bmp">
+      <Filter>资源文件</Filter>
+    </Image>
+    <Image Include="Plane2.bmp">
       <Filter>资源文件</Filter>
     </Image>
   </ItemGroup>

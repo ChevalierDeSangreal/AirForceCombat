@@ -3,19 +3,25 @@
 # define ICO_MAIN           100
 # define IDC_MAIN           100
 # define IDC_MOVE           101
-# define IDB_BACK           100
-# define IDB_PLANE          101
-# define IDB_BULLET         102
-# define IDB_EXP            103
-# define IDB_BARRIER        104
+# define IDB_MASK           100
+# define IDB_BACK           101
+# define IDB_PLANE          102
+# define IDB_BULLET         103
+# define IDB_EXP            104
+# define IDB_BARRIER        105
+# define IDB_PLANE2         106
+# define IDB_BULLET2        107
 
 
 
 ICO_MAIN    ICON        "Main.ico"
 IDC_MAIN    CURSOR      "Main.cur"
 IDC_MOVE    CURSOR      "Move.cur"
+IDB_MASK    BITMAP      "Mask.bmp"
 IDB_BACK    BITMAP      "Back1.bmp"
-IDB_PLANE   BITMAP      "Plane.bmp"
-IDB_BULLET  BITMAP      "Bullet.bmp"
+IDB_PLANE   BITMAP      "Plane1.bmp"
+IDB_BULLET  BITMAP      "Bullet1.bmp"
 IDB_EXP     BITMAP      "Exp.bmp"
-IDB_BARRIER BITMAP      "Plane.bmp"
+IDB_BARRIER BITMAP      "Barrier.bmp"
+IDB_PLANE2  BITMAP      "Plane2.bmp"
+IDB_BULLET2 BITMAP      "Bullet2.bmp"
