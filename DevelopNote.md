@@ -151,6 +151,7 @@
 - 位图句柄 dd hBmp
 - 绘图句柄 dd hDC
 - 障碍物半径	dd	dwRadius
+- ID  ddID
 
 #### 方法
 - 初始化 _BulletBarrierInit
@@ -164,7 +165,7 @@
  > 输出：eax  
 - 包是否与障碍物相撞	_PackHitBarrier
  > 判断包是否与障碍物相撞，输出撞eax = 1, eax = 0  
- > 输入：位置 Pos  ，半径 dwRadius 
+ > 输入：位置 Pos  ，半径 dwRadius  
  > 输出：eax
 
 ### 游戏逻辑控制类 Main
@@ -227,11 +228,14 @@
 - dd hExpBmp1
 - dd hExpBmp2
 - dd hExpBmp3
+- dd hBarrierBmp
+- dd hBarrierDC
 #### 方法
 - 重绘图像 _ShowMakerPaint
 - 初始化很多句柄并第一次显示图像 _ShowMakerPaint
 - 初始化 _ShowMakerInit
 - 析构 _ShowMakerDestroy
+- 绘制障碍物 _ShowMakerShowBarrier
 
 ---
 

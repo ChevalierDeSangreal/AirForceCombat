@@ -27,6 +27,8 @@ BULLETBMPHIDTH  equ     150
 BULLETBMPWIDTH  equ     150
 EXPBMPHIDTH     equ     95
 EXPBMPWIDTH     equ     97
+BARRIERBMPHIDTH equ     100
+BARRIERBMPWIDTH equ     100
 
 ICO_MAIN        equ     100
 IDC_MAIN        equ     100
@@ -35,6 +37,7 @@ IDB_BACK        equ     100
 IDB_PLANE       equ     101
 IDB_BULLET      equ     102
 IDB_EXP         equ     103
+IDB_BRRIER      equ     104
 ID_TIMER        equ     1
 
 INITHP          equ     1000
@@ -42,9 +45,10 @@ INITR           equ     20
 INITATK         equ     20
 INITATF         equ     10
 INITCALIBER     equ     5
-INITBULLETSPEED equ     5
+INITBULLETSPEED equ     1
 INITPLANESPEED  equ     50
-BULLETMAXNUM    equ     500            ; 子弹数量上限，也就是子弹池的规模
+BULLETMAXNUM    equ     500   
+BARRIERMAXNUM   equ     20; 子弹数量上限，也就是子弹池的规模
 BULLETRADIUS    equ     20
 
 
@@ -57,6 +61,7 @@ INITPACKEXP3	equ     20
 INITPACKR1      equ     10
 INITPACKR2      equ     15
 INITPACKR3      equ     20
+INITBARRIER     equ     40
 EXPPACKMAXNUM	equ		20
 EXPPACKGANFRE   equ     100
 BULLETPACKMAXNUM equ	20
@@ -71,7 +76,7 @@ hCursorMove     dd ?
 dwDebug         dd 0
 dwAttackSpeed   dd 0
 testsnum        dd 0
-
+dwBulletSpeedlimit dd 0
 
 .data
 
@@ -97,6 +102,16 @@ EXPPACK struct
     hDC			    dd ?
 
 EXPPACK ends
+
+BARRIER struct
+
+    dwRadius        dd ?
+    stNowPos        POS <>
+    hBmp            dd ?
+    hDC			    dd ?
+    dwID            dd ?
+
+BARRIER ends
 
 MAIN struct
 
@@ -136,31 +151,33 @@ ShowMaker struct
     hExpBmp1    dd ?
     hExpBmp2    dd ?
     hExpBmp3    dd ?
+    hBarrierBmp dd ?
+    hBarrierDC  dd ?
 
 ShowMaker ends
 
 AEROCRAFT struct
 
-dwID        dd 0
-dwHP        dd ?
-dwMaxHP     dd ?
-dwRadius    dd ?
-dwForward   dd ?
-stNowPos    POS <>
-dwLevel     dd ?
-dwExp       dd ?
-dwAtk       dd ?
-dwAtf       dd ?
-dwCaliber   dd ?
-dwWeaponType dd ?
-dwAmmunition dd ?
-hBmp        dd ?
-hDC         dd ?
-dwNxt       dd ?
-dwVeering   dd ?
-dwSpeed     dd ?
-dwBulletSpeed dd ?
-dwFireStamp dd ?
+    dwID        dd 0
+    dwHP        dd ?
+    dwMaxHP     dd ?
+    dwRadius    dd ?
+    dwForward   dd ?
+    stNowPos    POS <>
+    dwLevel     dd ?
+    dwExp       dd ?
+    dwAtk       dd ?
+    dwAtf       dd ?
+    dwCaliber   dd ?
+    dwWeaponType dd ?
+    dwAmmunition dd ?
+    hBmp        dd ?
+    hDC         dd ?
+    dwNxt       dd ?
+    dwVeering   dd ?
+    dwSpeed     dd ?
+    dwBulletSpeed dd ?
+    dwFireStamp dd ?
 
 AEROCRAFT ends
 
@@ -188,6 +205,7 @@ stAerocraft2    AEROCRAFT <>
 stBullets       BULLET BULLETMAXNUM dup(<>)
 stExpPack       EXPPACK EXPPACKMAXNUM dup(<>)
 stBulletPack    BULLETPACK BULLETPACKMAXNUM dup(<>)
+stBarrier       BARRIER     BARRIERMAXNUM dup(<>)
 
 _AerocraftLevelUp proto lpaerocraft:dword
 _AerocraftGainExp proto lpaerocraft:dword, GainExp:dword
@@ -640,6 +658,147 @@ _GetaPos proc uses ecx edx esi, @R
     ret
 
 _GetaPos endp
+; ************************************************
+; 以下为障碍物相关函数
+_BarrierInit   proc uses edx esi ebx ecx, types
+local @tmp
+assume esi : ptr BARRIER
+; 分配内存
+mov    edx, 0
+lea    esi, stBarrier
+xor ecx, ecx
+.while ecx < BARRIERMAXNUM
+       inc    ecx
+       mov    [esi].dwID,ecx
+       add    esi, sizeof BARRIER
+       ; 获取位置
+       invoke _GetaPos, [esi].dwRadius
+       mov    @tmp, eax
+       fild   @tmp
+       fstp[esi].stNowPos.fX
+       mov    @tmp, ebx
+       fild   @tmp
+       fstp[esi].stNowPos.fY
+       mov    eax, esi
+       mov    [esi].dwRadius, INITBARRIER
+       .endw
+       ret
+_BarrierInit endp
+
+;*********************************************************************************
+; 判断子弹是否撞上障碍物,
+; 输入：addr BULLET
+; 输出：eax
+; *********************************************************************************
+_BulletHitBarrier proc C @lpBullet
+local   @output, @index
+local   @Radius, @stPos:POS
+local   @BerRadius, @stBerPos:POS
+pushad
+
+; 指针各值赋给局部变量值
+assume  esi : ptr BULLET
+mov     esi, @lpBullet
+
+mov     eax, [esi].dwRadius
+mov     @Radius, eax
+
+finit
+fld[esi].stNowPos.fX
+fld[esi].stNowPos.fY
+fstp    @stPos.fY
+fstp    @stPos.fX
+
+assume  esi : nothing
+
+assume  esi : ptr BARRIER
+lea     esi, stBarrier
+
+mov     @output, 0
+mov     @index, 0
+.while  @index < BARRIERMAXNUM
+    .if[esi].dwID == 0
+            jmp @F
+            .endif
+
+            mov     eax, [esi].dwRadius
+            mov     @BerRadius, eax
+
+            finit
+            fld[esi].stNowPos.fX
+            fld[esi].stNowPos.fY
+            fstp    @stBerPos.fY
+            fstp    @stBerPos.fX
+
+            ; 判断相交
+            invoke  _CheckCircleCross, @stPos, @Radius, @stBerPos, @BerRadius
+            .if     eax == 1
+            mov     @output, 1
+            .break
+            .endif
+            @@:
+        mov     eax, @index
+            inc     eax
+            mov     @index, eax
+            add     esi, sizeof BARRIER
+            .endw
+
+            assume  esi : nothing
+
+            ; _FunReturn:
+        popad
+            mov     eax, @output
+            ret
+_BulletHitBarrier endp
+;*********************************************************************************
+; 判断包是否与障碍物相撞
+; 输入：stPos, Radius
+; 输出：eax
+; *********************************************************************************
+_PackHitBarrier proc C @stPos:POS, @Radius
+local   @output, @index
+local   @BerRadius, @stBerPos:POS
+pushad
+
+assume  esi : ptr BARRIER
+lea     esi, stBarrier
+
+mov     @output, 0
+mov     @index, 0
+.while  @index < BARRIERMAXNUM
+    .if[esi].dwID == 0
+            jmp     @F
+            .endif
+
+            mov     eax, [esi].dwRadius
+            mov     @BerRadius, eax
+
+            finit
+            fld[esi].stNowPos.fX
+            fld[esi].stNowPos.fY
+            fstp    @stBerPos.fY
+            fstp    @stBerPos.fX
+
+            ; 判断相交
+            invoke  _CheckCircleCross, @stPos, @Radius, @stBerPos, @BerRadius
+            .if     eax == 1
+            mov     @output, 1
+            .break
+            .endif
+
+            @@:
+        mov     eax, @index
+            inc     eax
+            mov     @index, eax
+            add     esi, sizeof BARRIER
+            .endw
+
+            assume  esi : nothing
+
+            popad
+            mov     eax, @output
+            ret
+_PackHitBarrier endp
 
 ;************************************************
 ; 以下为经验包相关函数
@@ -907,6 +1066,72 @@ _AerocraftChangeBullet proc  @lpPlayer, @types
     popad
     ret
 _AerocraftChangeBullet endp
+;*********************************************************************************
+; 判断飞机是否与障碍物相撞，输出撞eax = 1, eax = 0
+; 输入：ptr 玩家@lpPlayer
+; 输出：eax
+; *********************************************************************************
+_PlayerHitBarrier proc C @lpPlayer
+local   @output, @index
+local   @Radius, @stPos:POS
+local   @BerRadius, @stBerPos:POS
+pushad
+
+
+; 指针各值赋给局部变量值
+assume  esi : ptr AEROCRAFT
+mov     esi, @lpPlayer
+
+mov     eax, [esi].dwRadius
+mov     @Radius, eax
+
+finit
+fld[esi].stNowPos.fX
+fld[esi].stNowPos.fY
+fstp    @stPos.fY
+fstp    @stPos.fX
+
+assume  esi : nothing
+
+assume  esi : ptr BARRIER
+lea     esi, stBarrier
+
+mov     @output, 0
+mov     @index, 0
+.while  @index < BARRIERMAXNUM
+    .if[esi].dwID == 0
+        jmp     @F
+        .endif
+
+        mov     eax, [esi].dwRadius
+        mov     @BerRadius, eax
+
+        finit
+        fld[esi].stNowPos.fX
+        fld[esi].stNowPos.fY
+        fstp    @stBerPos.fY
+        fstp    @stBerPos.fX
+
+        ; 判断相交
+        invoke  _CheckCircleCross, @stPos, @Radius, @stBerPos, @BerRadius
+        .if     eax == 1
+        mov     @output, 1
+        .break
+        .endif
+
+        @@:
+    mov     eax, @index
+        inc     eax
+        mov     @index, eax
+        add     esi, sizeof BARRIER
+        .endw
+
+        assume  esi : nothing
+
+        popad
+        mov     eax, @output
+        ret
+_PlayerHitBarrier endp
 ;************************************************
 ;以下为子弹类相关函数
 
@@ -1077,8 +1302,12 @@ _BulletHitExp proc uses esi, @lpBullet
             
             mov     eax, @ExpHP
             sub     eax, @atk
-
-            .if     eax <= 0
+            sub     eax,1
+            AND     eax,80000000h
+            .if   eax == 80000000h
+                mov @tmp, eax
+                invoke printf, addr msg4, @tmp
+                mov eax, @tmp
                 ; 爆经验力
                 .if     [esi].dwType == 1
                     mov     @Exp, INITPACKEXP1
@@ -1183,45 +1412,58 @@ _BulletInit endp
 
 
 _BulletHitCheck proc C @lpBullet
-    local  @output 
-    pushad
-    ; assume  esi: ptr BULLET
-    ; mov     esi, @lpBullet
-    ; assume  esi: nothing
+local  @output
+pushad
+; assume  esi : ptr BULLET
+; mov     esi, @lpBullet
+; assume  esi : nothing
 
-    mov     @output, 0
+mov     @output, 0
 
-    invoke  _BulletHitPlayer, @lpBullet
-    mov     @output, eax
-    .if     @output == 1
-        invoke  _BulletDestroy, @lpBullet ; 注意格式
-        jmp     _BulletHitCheckReturn
-    .endif
+invoke  _BulletHitPlayer, @lpBullet
+mov      @output, eax
+.if     @output == 1
+invoke  _BulletDestroy, @lpBullet; 注意格式
+jmp     _BulletHitCheckReturn
+.endif
 
-    invoke  _BulletHitExp, @lpBullet
-    mov      @output, eax
-    .if     @output == 1
-        invoke  _BulletDestroy, @lpBullet
-        jmp     _BulletHitCheckReturn
-    .endif
+invoke  _BulletHitExp, @lpBullet
+mov      @output, eax
+.if     @output == 1
+invoke  _BulletDestroy, @lpBullet
+jmp     _BulletHitCheckReturn
+.endif
 
-    invoke  _BulletHitWall, @lpBullet
-    mov      @output, eax
-    .if     @output == 1
-        invoke  _BulletDestroy, @lpBullet
-        jmp     _BulletHitCheckReturn
-    .endif
+invoke  _BulletHitWall, @lpBullet
+mov      @output, eax
+.if     @output == 1
+invoke  _BulletDestroy, @lpBullet
+jmp     _BulletHitCheckReturn
+.endif
 
-_BulletHitCheckReturn:
+invoke  _BulletHitBarrier, @lpBullet
+mov      @output, eax
+.if     @output == 1
+invoke  _BulletDestroy, @lpBullet
+jmp     _BulletHitCheckReturn
+.endif
+
+_BulletHitCheckReturn :
 
     popad
-    mov     eax, @output
+        mov     eax, @output
 
+        ret
+        _BulletHitCheck endp
 
-    ret
-_BulletHitCheck endp
 
 _BulletMove proc uses  esi ecx ebx , lpbullet
+    inc dwBulletSpeedlimit
+    mov eax, dwBulletSpeedlimit
+    .if eax>=10
+        mov dwBulletSpeedlimit,0
+         ret
+    .endif
     assume esi : ptr BULLET
     mov    esi, lpbullet
     mov    ecx, [esi].dwSpeed
@@ -1407,18 +1649,14 @@ _AerocraftMove proc uses esi eax, lpAerocraft
     
     mov    eax, [esi].dwForward
     mov    forward, eax
-    .if [esi].dwNxt == 1
-        add    forward, 18000
-        invoke _mod, forward, 36000
-        mov    forward, eax
-    .elseif [esi].dwNxt == 3
-        add    forward, 9000
-        invoke _mod, forward, 36000
-        mov    forward, eax
+    .if [esi].dwNxt == 3
+        mov    forward, 18000
     .elseif [esi].dwNxt == 4
-        add    forward, 27000
-        invoke _mod, forward, 36000
-        mov    forward, eax
+        mov    forward, 0
+     .elseif[esi].dwNxt == 2
+            mov    forward, 9000
+    .elseif [esi].dwNxt == 1
+        mov    forward, 27000
     .endif
     invoke _BitMove, [esi].dwSpeed, forward, addr [esi].stNowPos
     mov    [esi].dwNxt, 0
@@ -1436,61 +1674,61 @@ _AerocraftMove proc uses esi eax, lpAerocraft
 _AerocraftMove endp
 
 _AerocraftInit proc
-local @tmp
+        local @tmp
 
-mov    stAerocraft1.dwMaxHP, INITHP
-mov    stAerocraft2.dwMaxHP, INITHP
-mov    stAerocraft1.dwHP, INITHP
-mov    stAerocraft2.dwHP, INITHP
-mov    stAerocraft1.dwRadius, INITR
-mov    stAerocraft2.dwRadius, INITR
-mov    stAerocraft1.dwForward, 9000
-mov    stAerocraft2.dwForward, 9000
-mov    stAerocraft1.dwLevel, 0
-mov    stAerocraft2.dwLevel, 0
-mov    stAerocraft1.dwExp, 0
-mov    stAerocraft2.dwExp, 0
-mov    stAerocraft1.dwAtk, INITATK
-mov    stAerocraft2.dwAtk, INITATK
-mov    stAerocraft1.dwAtf, INITATF
-mov    stAerocraft2.dwAtf, INITATF
-mov    stAerocraft1.dwWeaponType, 0
-mov    stAerocraft2.dwWeaponType, 0
-mov    stAerocraft1.dwAmmunition, 0
-mov    stAerocraft2.dwAmmunition, 0
-mov    stAerocraft1.dwCaliber, INITCALIBER
-mov    stAerocraft2.dwCaliber, INITCALIBER
-mov    stAerocraft1.dwNxt, 0
-mov    stAerocraft2.dwNxt, 0
-mov    stAerocraft1.dwSpeed, INITPLANESPEED
-mov    stAerocraft2.dwSpeed, INITPLANESPEED
-mov    stAerocraft1.dwBulletSpeed, INITBULLETSPEED
-mov    stAerocraft2.dwBulletSpeed, INITBULLETSPEED
-mov    stAerocraft1.dwFireStamp, 0
-mov    stAerocraft2.dwFireStamp, 0
-mov    stAerocraft1.dwVeering, 0
-mov    stAerocraft2.dwVeering, 0
+    mov    stAerocraft1.dwMaxHP, INITHP
+    mov    stAerocraft2.dwMaxHP, INITHP
+    mov    stAerocraft1.dwHP, INITHP
+    mov    stAerocraft2.dwHP, INITHP
+    mov    stAerocraft1.dwRadius, INITR
+    mov    stAerocraft2.dwRadius, INITR
+    mov    stAerocraft1.dwForward, 9000
+    mov    stAerocraft2.dwForward, 9000
+    mov    stAerocraft1.dwLevel, 0
+    mov    stAerocraft2.dwLevel, 0
+    mov    stAerocraft1.dwExp, 0
+    mov    stAerocraft2.dwExp, 0
+    mov    stAerocraft1.dwAtk, INITATK
+    mov    stAerocraft2.dwAtk, INITATK
+    mov    stAerocraft1.dwAtf, INITATF
+    mov    stAerocraft2.dwAtf, INITATF
+    mov    stAerocraft1.dwWeaponType, 0
+    mov    stAerocraft2.dwWeaponType, 0
+    mov    stAerocraft1.dwAmmunition, 0
+    mov    stAerocraft2.dwAmmunition, 0
+    mov    stAerocraft1.dwCaliber, INITCALIBER
+    mov    stAerocraft2.dwCaliber, INITCALIBER
+    mov    stAerocraft1.dwNxt, 0
+    mov    stAerocraft2.dwNxt, 0
+    mov    stAerocraft1.dwSpeed, INITPLANESPEED
+    mov    stAerocraft2.dwSpeed, INITPLANESPEED
+    mov    stAerocraft1.dwBulletSpeed, INITBULLETSPEED
+    mov    stAerocraft2.dwBulletSpeed, INITBULLETSPEED
+    mov    stAerocraft1.dwFireStamp, 0
+    mov    stAerocraft2.dwFireStamp, 0
+    mov    stAerocraft1.dwVeering, 0
+    mov    stAerocraft2.dwVeering, 0
 
-; 分别初始化位置
-invoke _GetaPos, stAerocraft1.dwRadius
-mov    @tmp, eax
-fild   @tmp
-fstp   stAerocraft1.stNowPos.fX
-mov    @tmp, ebx
-fild   @tmp
-fstp   stAerocraft1.stNowPos.fY
-mov    stAerocraft1.dwID, 1
+    ; 分别初始化位置
+    invoke _GetaPos, stAerocraft1.dwRadius
+    mov    @tmp, eax
+    fild   @tmp
+    fstp   stAerocraft1.stNowPos.fX
+    mov    @tmp, ebx
+    fild   @tmp
+    fstp   stAerocraft1.stNowPos.fY
+    mov    stAerocraft1.dwID, 1
 
-invoke _GetaPos, stAerocraft2.dwRadius
-mov    @tmp, eax
-fild   @tmp
-fstp   stAerocraft2.stNowPos.fX
-mov    @tmp, ebx
-fild   @tmp
-fstp   stAerocraft2.stNowPos.fY
-mov    stAerocraft2.dwID, 2
+    invoke _GetaPos, stAerocraft2.dwRadius
+    mov    @tmp, eax
+    fild   @tmp
+    fstp   stAerocraft2.stNowPos.fX
+    mov    @tmp, ebx
+    fild   @tmp
+    fstp   stAerocraft2.stNowPos.fY
+    mov    stAerocraft2.dwID, 2
 
-ret
+    ret
 _AerocraftInit endp
 
 _AerocraftFire proc uses esi lpAerocraft
@@ -1508,7 +1746,6 @@ _MainInit proc
 
     invoke _RandSetSeed
     invoke _AerocraftInit
-    
 
 
     ret
@@ -1528,6 +1765,7 @@ _ShowMakerDestroy proc
     invoke DeleteDC, stShowMaker.hExpDC1
     invoke DeleteDC, stShowMaker.hExpDC2
     invoke DeleteDC, stShowMaker.hExpDC3
+    invoke DeleteDC, stShowMaker.hBarrierDC
     invoke DeleteObject, stShowMaker.hBmpFinal
     invoke DeleteObject, stAerocraft1.hBmp
     invoke DeleteObject, stAerocraft2.hBmp
@@ -1535,10 +1773,46 @@ _ShowMakerDestroy proc
     invoke DeleteObject, stShowMaker.hExpBmp1
     invoke DeleteObject, stShowMaker.hExpBmp2
     invoke DeleteObject, stShowMaker.hExpBmp3
+    invoke DeleteObject, stShowMaker.hBarrierBmp
     ; <<<<<删除完成
 
     ret
 _ShowMakerDestroy endp
+
+_ShowMakerShowBarrier proc uses eax ecx esi
+        local @x, @y, @D
+
+    assume esi:ptr BARRIER
+    xor    ecx, ecx
+    lea    esi, stBarrier
+    .while ecx < BARRIER
+        inc    ecx
+        push   ecx
+        .if [esi].dwID == 0
+            jmp @F
+        .endif
+
+        finit
+        mov    eax, [esi].dwRadius
+        mov    @D, eax
+        add    @D, eax
+        fld    [esi].stNowPos.fX
+        fist   @x
+        fld    [esi].stNowPos.fY
+        fist   @y
+        mov    eax, [esi].dwRadius
+        sub    @x, eax
+        sub    @y, eax
+        invoke StretchBlt, stShowMaker.hDCFinal, @x, @y, @D, @D, stShowMaker.hBarrierDC, 0, 0, BARRIERBMPHIDTH, BARRIERBMPWIDTH, SRCAND
+@@:
+        add    esi, sizeof BARRIER
+        pop    ecx
+
+    .endw
+    assume esi:nothing
+    ret
+
+_ShowMakerShowBarrier endp
 
 _ShowMakerFirstPaint proc uses eax
         local @hDC
@@ -1560,6 +1834,8 @@ _ShowMakerFirstPaint proc uses eax
     mov    stShowMaker.hExpDC2, eax
     invoke CreateCompatibleDC, @hDC
     mov    stShowMaker.hExpDC3, eax
+    invoke CreateCompatibleDC, @hDC
+    mov    stShowMaker.hBarrierDC, eax
     invoke CreateCompatibleBitmap, @hDC, MAP_HIDTH, MAP_WIDTH
     mov    stShowMaker.hBmpFinal, eax
     invoke ReleaseDC, hWinMain, @hDC
@@ -1578,6 +1854,8 @@ _ShowMakerFirstPaint proc uses eax
     mov    stShowMaker.hExpBmp2, eax
     invoke LoadBitmap, hInstance, IDB_EXP
     mov    stShowMaker.hExpBmp3, eax
+    invoke LoadBitmap, hInstance, IDB_BRRIER
+    mov    stShowMaker.hBarrierBmp, eax
 
     invoke SelectObject, stAerocraft1.hDC, stAerocraft1.hBmp
     invoke SelectObject, stAerocraft2.hDC, stAerocraft2.hBmp
@@ -1586,6 +1864,7 @@ _ShowMakerFirstPaint proc uses eax
     invoke SelectObject, stShowMaker.hExpDC1, stShowMaker.hExpBmp1
     invoke SelectObject, stShowMaker.hExpDC2, stShowMaker.hExpBmp2
     invoke SelectObject, stShowMaker.hExpDC3, stShowMaker.hExpBmp3
+    invoke SelectObject, stShowMaker.hBarrierDC, stShowMaker.hBarrierBmp
 
 
     ; 绘制背景
@@ -1599,6 +1878,9 @@ _ShowMakerFirstPaint proc uses eax
 
     ; invoke TransparentBlt, hDCFinal, 0, 0, CLOCK_SIZE, CLOCK_SIZE, @hDCCircle, 0, 0, CLOCK_SIZE, CLOCK_SIZE, 0
     
+    ; 绘制障碍物
+    invoke _ShowMakerShowBarrier
+
     finit
     ; 绘制飞机1
     mov    eax, stAerocraft1.dwRadius
@@ -1643,6 +1925,8 @@ _ShowMakerPaint proc uses eax ecx esi
     invoke PatBlt, stShowMaker.hDCFinal, 0, 0, MAP_HIDTH, MAP_WIDTH, PATCOPY
     invoke DeleteObject, eax
 
+    ; 绘制障碍物
+    invoke _ShowMakerShowBarrier
 
     ; 绘制子弹
     assume esi:ptr BULLET
@@ -1764,68 +2048,68 @@ _ShowMakerInit proc
 _ShowMakerInit endp
 
 _MainKeyboard proc
-local @outs:dword
-invoke GetKeyState, 'W'
-.if ah
-mov    stAerocraft1.dwNxt, 2
-.endif
+        local @outs:dword
+    invoke GetKeyState, 'W'
+    .if ah
+    mov    stAerocraft1.dwNxt, 2
+    .endif
 
-invoke GetKeyState, 'S'
-.if ah
-mov    stAerocraft1.dwNxt, 1
-.endif
+    invoke GetKeyState, 'S'
+    .if ah
+    mov    stAerocraft1.dwNxt, 1
+    .endif
 
-invoke GetKeyState, 'A'
-.if ah
-mov    stAerocraft1.dwNxt, 3
-.endif
+    invoke GetKeyState, 'A'
+    .if ah
+    mov    stAerocraft1.dwNxt, 3
+    .endif
 
-invoke GetKeyState, 'D'
-.if ah
-mov    stAerocraft1.dwNxt, 4
-.endif
+    invoke GetKeyState, 'D'
+    .if ah
+    mov    stAerocraft1.dwNxt, 4
+    .endif
 
-invoke GetKeyState, 'I'
-.if ah
-mov    stAerocraft2.dwNxt, 2
-.endif
+    invoke GetKeyState, 'I'
+    .if ah
+    mov    stAerocraft2.dwNxt, 2
+    .endif
 
-invoke GetKeyState, 'K'
-.if ah
-mov    stAerocraft2.dwNxt, 1
-.endif
+    invoke GetKeyState, 'K'
+    .if ah
+    mov    stAerocraft2.dwNxt, 1
+    .endif
 
-invoke GetKeyState, 'J'
-.if ah
-mov    stAerocraft2.dwNxt, 3
-.endif
+    invoke GetKeyState, 'J'
+    .if ah
+    mov    stAerocraft2.dwNxt, 3
+    .endif
 
-invoke GetKeyState, 'L'
-.if ah
-mov    stAerocraft2.dwNxt, 4
-.endif
+    invoke GetKeyState, 'L'
+    .if ah
+    mov    stAerocraft2.dwNxt, 4
+    .endif
 
-invoke GetKeyState, 'Q'
-.if ah
-mov    stAerocraft1.dwVeering, 2
-.endif
+    invoke GetKeyState, 'Q'
+    .if ah
+    mov    stAerocraft1.dwVeering, 2
+    .endif
 
-invoke GetKeyState, 'E'
-.if ah
-mov    stAerocraft1.dwVeering, 1
-.endif
+    invoke GetKeyState, 'E'
+    .if ah
+    mov    stAerocraft1.dwVeering, 1
+    .endif
 
-invoke GetKeyState, 'U'
-.if ah
-mov    stAerocraft2.dwVeering, 2
-.endif
+    invoke GetKeyState, 'U'
+    .if ah
+    mov    stAerocraft2.dwVeering, 2
+    .endif
 
-invoke GetKeyState, 'O'
-.if ah
-mov    stAerocraft2.dwVeering, 1
-.endif
+    invoke GetKeyState, 'O'
+    .if ah
+    mov    stAerocraft2.dwVeering, 1
+    .endif
 
-ret
+    ret
 _MainKeyboard endp
 
 _MainFrame proc uses eax esi ecx

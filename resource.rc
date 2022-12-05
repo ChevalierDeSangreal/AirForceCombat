@@ -7,6 +7,7 @@
 # define IDB_PLANE          101
 # define IDB_BULLET         102
 # define IDB_EXP            103
+# define IDB_BARRIER        104
 
 
 
@@ -17,3 +18,4 @@ IDB_BACK    BITMAP      "Back1.bmp"
 IDB_PLANE   BITMAP      "Plane.bmp"
 IDB_BULLET  BITMAP      "Bullet.bmp"
 IDB_EXP     BITMAP      "Exp.bmp"
+IDB_BARRIER BITMAP      "Plane.bmp"

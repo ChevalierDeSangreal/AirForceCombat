@@ -1,14 +1,16 @@
 ﻿  Assembling AirForceCombat.asm...
-AirForceCombat.asm(71): warning A4014: instructions and initialized data not supported in BSS segments
-AirForceCombat.asm(72): warning A4014: instructions and initialized data not supported in BSS segments
-AirForceCombat.asm(73): warning A4014: instructions and initialized data not supported in BSS segments
-AirForceCombat.asm(490): warning A6004: procedure argument or local not referenced : @tmp1
-AirForceCombat.asm(490): warning A6004: procedure argument or local not referenced : @tmp2
-AirForceCombat.asm(490): warning A6004: procedure argument or local not referenced : @tmp4
-AirForceCombat.asm(1118): warning A6004: procedure argument or local not referenced : @tmp
-AirForceCombat.asm(1181): warning A6004: procedure argument or local not referenced : @hDC
-AirForceCombat.asm(1750): warning A6004: procedure argument or local not referenced : @hDC
-AirForceCombat.asm(1829): warning A6004: procedure argument or local not referenced : @outs
-AirForceCombat.asm(1904): warning A6004: procedure argument or local not referenced : @tmp
-AirForceCombat.asm(1938): warning A6004: procedure argument or local not referenced : @char
-  AirForceCombat.vcxproj -> D:\github\ChevalierDeSangreal\AirForceCombat\Debug\AirForceCombat.exe
+AirForceCombat.asm(76): warning A4014: instructions and initialized data not supported in BSS segments
+AirForceCombat.asm(77): warning A4014: instructions and initialized data not supported in BSS segments
+AirForceCombat.asm(78): warning A4014: instructions and initialized data not supported in BSS segments
+AirForceCombat.asm(79): warning A4014: instructions and initialized data not supported in BSS segments
+AirForceCombat.asm(508): warning A6004: procedure argument or local not referenced : @tmp1
+AirForceCombat.asm(508): warning A6004: procedure argument or local not referenced : @tmp2
+AirForceCombat.asm(508): warning A6004: procedure argument or local not referenced : @tmp4
+AirForceCombat.asm(686): warning A6004: procedure argument or local not referenced : types
+AirForceCombat.asm(1410): warning A6004: procedure argument or local not referenced : @hDC
+AirForceCombat.asm(2035): warning A6004: procedure argument or local not referenced : @hDC
+AirForceCombat.asm(2114): warning A6004: procedure argument or local not referenced : @outs
+AirForceCombat.asm(2189): warning A6004: procedure argument or local not referenced : @tmp
+AirForceCombat.asm(2223): warning A6004: procedure argument or local not referenced : @char
+legacy_stdio_wide_specifiers.lib(legacy_stdio_wide_specifiers.obj) : warning LNK4210: 存在 .CRT 节；可能有未处理的静态初始值设定项或结束符
+  AirForceCombat.vcxproj -> D:\Software\AssemblyLanguage\AirForceCombat\Debug\AirForceCombat.exe
