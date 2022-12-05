@@ -55,8 +55,8 @@ INITPACKEXP1	equ     5
 INITPACKEXP2	equ     10
 INITPACKEXP3	equ     20
 INITPACKR1      equ     10
-INITPACKR2      equ     20
-INITPACKR3      equ     30
+INITPACKR2      equ     15
+INITPACKR3      equ     20
 EXPPACKMAXNUM	equ		20
 EXPPACKGANFRE   equ     100
 BULLETPACKMAXNUM equ	20
@@ -566,6 +566,30 @@ _GetaPos proc uses ecx edx esi, @R
 
         
         ; 扫描所有实体，判断该坐标是否可用，用edx为1表示该坐标可用
+        ; 扫描经验包表
+        mov    edx, 1
+        lea    esi, stExpPack
+        assume esi:ptr EXPPACK
+        xor    ecx, ecx
+        .while ecx < EXPPACKMAXNUM
+            mov    eax, [esi].dwID
+            .if eax != 0
+                invoke _CheckCircleCross, @pos, @R, [esi].stNowPos, [esi].dwRadius
+                .if eax
+                    xor    edx, edx
+                    .break
+                .endif
+            .endif
+            inc    ecx
+            add    esi, sizeof EXPPACK
+        .endw
+        assume esi:nothing
+
+        .if edx == 0
+            .continue
+        .endif
+
+
         ; 扫描子弹表
         mov    edx, 1
         lea    esi, stBullets
@@ -1576,6 +1600,7 @@ _ShowMakerPaint proc uses eax ecx esi
     lea    esi, stExpPack
     xor    ecx, ecx
     .while ecx < EXPPACKMAXNUM
+        mov    eax, [esi].dwID; 调试用
         inc    ecx
         .if [esi].dwID == 0
             .continue
@@ -1592,8 +1617,10 @@ _ShowMakerPaint proc uses eax ecx esi
         mov    eax, [esi].dwRadius
         sub    @x, eax
         sub    @y, eax
+        push   ecx
         invoke StretchBlt, stShowMaker.hDCFinal, @x, @y, @D, @D, [esi].hDC, 0, 0, EXPBMPHIDTH, EXPBMPWIDTH, SRCAND
-    
+        pop    ecx
+        add    esi, sizeof EXPPACK
     .endw
     assume esi:nothing
     
@@ -1745,7 +1772,9 @@ _MainFrame proc uses eax esi ecx
             .else
                 mov    eax, 1
             .endif
+            push   eax
             invoke printf, addr msg2
+            pop    eax
             invoke _ExpPackInit, eax
         .endif
     ; .endif
