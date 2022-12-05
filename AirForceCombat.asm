@@ -60,7 +60,7 @@ INITPACKR3      equ     20
 EXPPACKMAXNUM	equ		20
 EXPPACKGANFRE   equ     100
 BULLETPACKMAXNUM equ	20
-DEFAULTW        equ     2
+DEFAULTW        equ     200
 
 
 .data?
@@ -1359,36 +1359,37 @@ _AerocraftLevelUp proc uses esi ,lpaerocraft
 _AerocraftLevelUp    endp
 
 _AerocraftVeer proc
-local forward
+    local forward
 
-mov    eax, stAerocraft1.dwForward
-mov    forward, eax
-.if stAerocraft1.dwVeering == 1
-sub    forward, DEFAULTW
-invoke _mod, forward, 36000
-mov    stAerocraft1.dwForward, eax
-.elseif stAerocraft1.dwVeering == 2
-add    forward, DEFAULTW
-invoke _mod, forward, 36000
-mov    stAerocraft1.dwForward, eax
-.endif
-mov    stAerocraft1.dwVeering, 0
+    mov    eax, stAerocraft1.dwForward
+    mov    forward, eax
+    .if stAerocraft1.dwVeering == 1
+        add    forward , 36000
+        sub    forward, DEFAULTW
+        invoke _mod, forward, 36000
+        mov    stAerocraft1.dwForward, eax
+    .elseif stAerocraft1.dwVeering == 2
+        add    forward, DEFAULTW
+        invoke _mod, forward, 36000
+        mov    stAerocraft1.dwForward, eax
+    .endif
+    mov    stAerocraft1.dwVeering, 0
 
 
 
-mov    eax, stAerocraft2.dwForward
-mov    forward, eax
-.if stAerocraft2.dwVeering == 1
-sub    forward, DEFAULTW
-invoke _mod, forward, 36000
-mov    stAerocraft2.dwForward, eax
-.elseif stAerocraft2.dwVeering == 2
-add    forward, DEFAULTW
-invoke _mod, forward, 36000
-mov    stAerocraft2.dwForward, eax
-.endif
-mov    stAerocraft2.dwVeering, 0
-
+    mov    eax, stAerocraft2.dwForward
+    mov    forward, eax
+    .if stAerocraft2.dwVeering == 1
+        add    forward, 36000
+        sub    forward, DEFAULTW
+        invoke _mod, forward, 36000
+        mov    stAerocraft2.dwForward, eax
+    .elseif stAerocraft2.dwVeering == 2
+        add    forward, DEFAULTW
+        invoke _mod, forward, 36000
+        mov    stAerocraft2.dwForward, eax
+    .endif
+        mov    stAerocraft2.dwVeering, 0
 
 ret
 _AerocraftVeer  endp
@@ -1806,22 +1807,22 @@ mov    stAerocraft2.dwNxt, 4
 
 invoke GetKeyState, 'Q'
 .if ah
-mov    stAerocraft1.dwForward, 2
+mov    stAerocraft1.dwVeering, 2
 .endif
 
 invoke GetKeyState, 'E'
 .if ah
-mov    stAerocraft1.dwForward, 1
+mov    stAerocraft1.dwVeering, 1
 .endif
 
 invoke GetKeyState, 'U'
 .if ah
-mov    stAerocraft2.dwForward, 2
+mov    stAerocraft2.dwVeering, 2
 .endif
 
 invoke GetKeyState, 'O'
 .if ah
-mov    stAerocraft2.dwForward, 1
+mov    stAerocraft2.dwVeering, 1
 .endif
 
 ret
@@ -1894,7 +1895,7 @@ _MainFrame proc uses eax esi ecx
     ; .endif
         
     invoke _MainKeyboard
-
+    invoke _AerocraftVeer
     invoke _AerocraftMove, addr stAerocraft1
     invoke _AerocraftMove, addr stAerocraft2
 

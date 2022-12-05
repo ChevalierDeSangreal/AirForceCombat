@@ -7,8 +7,8 @@ AirForceCombat.asm(490): warning A6004: procedure argument or local not referenc
 AirForceCombat.asm(490): warning A6004: procedure argument or local not referenced : @tmp4
 AirForceCombat.asm(1118): warning A6004: procedure argument or local not referenced : @tmp
 AirForceCombat.asm(1181): warning A6004: procedure argument or local not referenced : @hDC
-AirForceCombat.asm(1749): warning A6004: procedure argument or local not referenced : @hDC
-AirForceCombat.asm(1828): warning A6004: procedure argument or local not referenced : @outs
-AirForceCombat.asm(1903): warning A6004: procedure argument or local not referenced : @tmp
-AirForceCombat.asm(1937): warning A6004: procedure argument or local not referenced : @char
+AirForceCombat.asm(1750): warning A6004: procedure argument or local not referenced : @hDC
+AirForceCombat.asm(1829): warning A6004: procedure argument or local not referenced : @outs
+AirForceCombat.asm(1904): warning A6004: procedure argument or local not referenced : @tmp
+AirForceCombat.asm(1938): warning A6004: procedure argument or local not referenced : @char
   AirForceCombat.vcxproj -> D:\github\ChevalierDeSangreal\AirForceCombat\Debug\AirForceCombat.exe
