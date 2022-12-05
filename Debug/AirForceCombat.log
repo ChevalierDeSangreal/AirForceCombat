@@ -2,13 +2,13 @@
 AirForceCombat.asm(71): warning A4014: instructions and initialized data not supported in BSS segments
 AirForceCombat.asm(72): warning A4014: instructions and initialized data not supported in BSS segments
 AirForceCombat.asm(73): warning A4014: instructions and initialized data not supported in BSS segments
-AirForceCombat.asm(489): warning A6004: procedure argument or local not referenced : @tmp1
-AirForceCombat.asm(489): warning A6004: procedure argument or local not referenced : @tmp2
-AirForceCombat.asm(489): warning A6004: procedure argument or local not referenced : @tmp4
-AirForceCombat.asm(1087): warning A6004: procedure argument or local not referenced : @tmp
-AirForceCombat.asm(1150): warning A6004: procedure argument or local not referenced : @hDC
-AirForceCombat.asm(1685): warning A6004: procedure argument or local not referenced : @hDC
-AirForceCombat.asm(1744): warning A6004: procedure argument or local not referenced : @outs
-AirForceCombat.asm(1819): warning A6004: procedure argument or local not referenced : @tmp
-AirForceCombat.asm(1853): warning A6004: procedure argument or local not referenced : @char
+AirForceCombat.asm(490): warning A6004: procedure argument or local not referenced : @tmp1
+AirForceCombat.asm(490): warning A6004: procedure argument or local not referenced : @tmp2
+AirForceCombat.asm(490): warning A6004: procedure argument or local not referenced : @tmp4
+AirForceCombat.asm(1118): warning A6004: procedure argument or local not referenced : @tmp
+AirForceCombat.asm(1181): warning A6004: procedure argument or local not referenced : @hDC
+AirForceCombat.asm(1749): warning A6004: procedure argument or local not referenced : @hDC
+AirForceCombat.asm(1828): warning A6004: procedure argument or local not referenced : @outs
+AirForceCombat.asm(1903): warning A6004: procedure argument or local not referenced : @tmp
+AirForceCombat.asm(1937): warning A6004: procedure argument or local not referenced : @char
   AirForceCombat.vcxproj -> D:\github\ChevalierDeSangreal\AirForceCombat\Debug\AirForceCombat.exe

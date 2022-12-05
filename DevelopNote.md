@@ -131,7 +131,7 @@
 ### 武器包
 #### 属性
 - id dd dwID
-- 类型编号 dd dwType
+- 类型编号 dd dwType 
 - 空间坐标 POS stNowPos
 - 位图句柄 dd hBmp
 - 绘图句柄 dd hDC
@@ -143,9 +143,29 @@
 - 玩家是否与武器包相撞	_PlayerHitBulletPack
  > 判断飞机是否与武器包相撞，输出撞eax = 1, eax = 0  
  > 输入：ptr 玩家@lpPlayer  
- > 输出：eax
+ > 输出：eax  
 
----
+### 障碍物Barrier
+#### 属性 
+- 空间坐标 POS stNowPos
+- 位图句柄 dd hBmp
+- 绘图句柄 dd hDC
+- 障碍物半径	dd	dwRadius
+
+#### 方法
+- 初始化 _BulletBarrierInit
+- 玩家是否与障碍物相撞	_PlayerHitBarrier
+ > 判断飞机是否与障碍物相撞，输出撞eax = 1, eax = 0  
+ > 输入：ptr 玩家@lpPlayer  
+ > 输出：eax  
+- 子弹是否与障碍物相撞	_BulletHitBarrier
+ > 判断子弹是否与障碍物相撞，输出撞eax = 1, eax = 0  
+ > 输入：ptr 子弹@lpBullet  
+ > 输出：eax  
+- 包是否与障碍物相撞	_PackHitBarrier
+ > 判断包是否与障碍物相撞，输出撞eax = 1, eax = 0  
+ > 输入：位置 Pos  ，半径 dwRadius 
+ > 输出：eax
 
 ### 游戏逻辑控制类 Main
 #### 属性

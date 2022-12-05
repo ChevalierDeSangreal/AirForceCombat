@@ -60,7 +60,7 @@ INITPACKR3      equ     20
 EXPPACKMAXNUM	equ		20
 EXPPACKGANFRE   equ     100
 BULLETPACKMAXNUM equ	20
-
+DEFAULTW        equ     2
 
 
 .data?
@@ -141,25 +141,26 @@ ShowMaker ends
 
 AEROCRAFT struct
 
-    dwID        dd 0
-    dwHP        dd ?
-    dwMaxHP     dd ?
-    dwRadius    dd ?
-    dwForward   dd ?
-    stNowPos    POS <>
-    dwLevel     dd ?
-    dwExp       dd ?
-    dwAtk       dd ?
-    dwAtf       dd ?
-    dwCaliber   dd ?
-    dwWeaponType dd ?
-    dwAmmunition dd ?
-    hBmp        dd ?
-    hDC         dd ?
-    dwNxt       dd ?
-    dwSpeed     dd ?
-    dwBulletSpeed dd ?
-    dwFireStamp dd ?
+dwID        dd 0
+dwHP        dd ?
+dwMaxHP     dd ?
+dwRadius    dd ?
+dwForward   dd ?
+stNowPos    POS <>
+dwLevel     dd ?
+dwExp       dd ?
+dwAtk       dd ?
+dwAtf       dd ?
+dwCaliber   dd ?
+dwWeaponType dd ?
+dwAmmunition dd ?
+hBmp        dd ?
+hDC         dd ?
+dwNxt       dd ?
+dwVeering   dd ?
+dwSpeed     dd ?
+dwBulletSpeed dd ?
+dwFireStamp dd ?
 
 AEROCRAFT ends
 
@@ -861,7 +862,37 @@ _PlayerHitBulletPack proc C @lpPlayer
     mov     eax, @output
     ret
 _PlayerHitBulletPack endp
+;*********************************************************************************
+; 判断飞机是否撞上边界
+; 输入：ptr AEROCRAFT
+; 输出：eax = 1撞上，eax = 0未撞上
+; *********************************************************************************
+_AerocraftHitWall proc C  @lpPlayer
+    local   @output
+    local   @Radius, @stPos:POS
+    pushad
+    assume  esi : ptr AEROCRAFT
+    mov     esi, @lpPlayer
 
+    mov     eax, [esi].dwRadius
+    mov     @Radius, eax
+
+    finit
+    fld     [esi].stNowPos.fX
+    fld     [esi].stNowPos.fY
+    fstp    @stPos.fY
+    fstp    @stPos.fX
+
+    assume  esi : nothing
+
+    invoke  _CheckCircleEdge, @stPos, @Radius
+    xor eax, 1
+    mov     @output, eax
+    ; _FunReturn:
+    popad
+            mov     eax, @output
+            ret
+_AerocraftHitWall endp
 _AerocraftChangeBullet proc  @lpPlayer, @types
     pushad
 
@@ -1325,17 +1356,41 @@ _AerocraftLevelUp proc uses esi ,lpaerocraft
     assume	esi : nothing
     ;?还未解决，怎么实现升级选择
     ret
-     endp
+_AerocraftLevelUp    endp
 
-_AerocraftVeer proc uses esi eax
-    assume	esi : ptr AEROCRAFT
-    lea		esi, stAerocraft1
-    mov     eax, 0
-    mov     [esi].dwForward, eax
-    lea		esi, stAerocraft2
-    mov     [esi].dwForward, eax
-    assume	esi : nothing
-    ret
+_AerocraftVeer proc
+local forward
+
+mov    eax, stAerocraft1.dwForward
+mov    forward, eax
+.if stAerocraft1.dwVeering == 1
+sub    forward, DEFAULTW
+invoke _mod, forward, 36000
+mov    stAerocraft1.dwForward, eax
+.elseif stAerocraft1.dwVeering == 2
+add    forward, DEFAULTW
+invoke _mod, forward, 36000
+mov    stAerocraft1.dwForward, eax
+.endif
+mov    stAerocraft1.dwVeering, 0
+
+
+
+mov    eax, stAerocraft2.dwForward
+mov    forward, eax
+.if stAerocraft2.dwVeering == 1
+sub    forward, DEFAULTW
+invoke _mod, forward, 36000
+mov    stAerocraft2.dwForward, eax
+.elseif stAerocraft2.dwVeering == 2
+add    forward, DEFAULTW
+invoke _mod, forward, 36000
+mov    stAerocraft2.dwForward, eax
+.endif
+mov    stAerocraft2.dwVeering, 0
+
+
+ret
 _AerocraftVeer  endp
 
 _AerocraftMove proc uses esi eax, lpAerocraft
@@ -1366,66 +1421,75 @@ _AerocraftMove proc uses esi eax, lpAerocraft
     .endif
     invoke _BitMove, [esi].dwSpeed, forward, addr [esi].stNowPos
     mov    [esi].dwNxt, 0
-
+    invoke	_AerocraftHitWall, esi
+    ; 撤回此次移动
+    .if eax == 1
+        add     forward, 18000
+        invoke  _mod, forward, 36000
+        mov     forward, eax
+        invoke _BitMove, [esi].dwSpeed, forward, addr[esi].stNowPos
+        .endif
     assume esi:nothing
     ret
 
 _AerocraftMove endp
 
 _AerocraftInit proc
-        local @tmp
+local @tmp
 
-    mov    stAerocraft1.dwMaxHP, INITHP
-    mov    stAerocraft2.dwMaxHP, INITHP
-    mov    stAerocraft1.dwHP, INITHP
-    mov    stAerocraft2.dwHP, INITHP
-    mov    stAerocraft1.dwRadius, INITR
-    mov    stAerocraft2.dwRadius, INITR
-    mov    stAerocraft1.dwForward, 9000
-    mov    stAerocraft2.dwForward, 9000
-    mov    stAerocraft1.dwLevel, 0
-    mov    stAerocraft2.dwLevel, 0
-    mov    stAerocraft1.dwExp, 0
-    mov    stAerocraft2.dwExp, 0
-    mov    stAerocraft1.dwAtk, INITATK
-    mov    stAerocraft2.dwAtk, INITATK
-    mov    stAerocraft1.dwAtf, INITATF
-    mov    stAerocraft2.dwAtf, INITATF
-    mov    stAerocraft1.dwWeaponType, 0
-    mov    stAerocraft2.dwWeaponType, 0
-    mov    stAerocraft1.dwAmmunition, 0
-    mov    stAerocraft2.dwAmmunition, 0
-    mov    stAerocraft1.dwCaliber, INITCALIBER
-    mov    stAerocraft2.dwCaliber, INITCALIBER
-    mov    stAerocraft1.dwNxt, 0
-    mov    stAerocraft2.dwNxt, 0
-    mov    stAerocraft1.dwSpeed, INITPLANESPEED
-    mov    stAerocraft2.dwSpeed, INITPLANESPEED
-    mov    stAerocraft1.dwBulletSpeed, INITBULLETSPEED
-    mov    stAerocraft2.dwBulletSpeed, INITBULLETSPEED
-    mov    stAerocraft1.dwFireStamp, 0
-    mov    stAerocraft2.dwFireStamp, 0
+mov    stAerocraft1.dwMaxHP, INITHP
+mov    stAerocraft2.dwMaxHP, INITHP
+mov    stAerocraft1.dwHP, INITHP
+mov    stAerocraft2.dwHP, INITHP
+mov    stAerocraft1.dwRadius, INITR
+mov    stAerocraft2.dwRadius, INITR
+mov    stAerocraft1.dwForward, 9000
+mov    stAerocraft2.dwForward, 9000
+mov    stAerocraft1.dwLevel, 0
+mov    stAerocraft2.dwLevel, 0
+mov    stAerocraft1.dwExp, 0
+mov    stAerocraft2.dwExp, 0
+mov    stAerocraft1.dwAtk, INITATK
+mov    stAerocraft2.dwAtk, INITATK
+mov    stAerocraft1.dwAtf, INITATF
+mov    stAerocraft2.dwAtf, INITATF
+mov    stAerocraft1.dwWeaponType, 0
+mov    stAerocraft2.dwWeaponType, 0
+mov    stAerocraft1.dwAmmunition, 0
+mov    stAerocraft2.dwAmmunition, 0
+mov    stAerocraft1.dwCaliber, INITCALIBER
+mov    stAerocraft2.dwCaliber, INITCALIBER
+mov    stAerocraft1.dwNxt, 0
+mov    stAerocraft2.dwNxt, 0
+mov    stAerocraft1.dwSpeed, INITPLANESPEED
+mov    stAerocraft2.dwSpeed, INITPLANESPEED
+mov    stAerocraft1.dwBulletSpeed, INITBULLETSPEED
+mov    stAerocraft2.dwBulletSpeed, INITBULLETSPEED
+mov    stAerocraft1.dwFireStamp, 0
+mov    stAerocraft2.dwFireStamp, 0
+mov    stAerocraft1.dwVeering, 0
+mov    stAerocraft2.dwVeering, 0
 
-    ; 分别初始化位置
-    invoke _GetaPos, stAerocraft1.dwRadius
-    mov    @tmp, eax
-    fild   @tmp
-    fstp   stAerocraft1.stNowPos.fX
-    mov    @tmp, ebx
-    fild   @tmp
-    fstp   stAerocraft1.stNowPos.fY
-    mov    stAerocraft1.dwID, 1
+; 分别初始化位置
+invoke _GetaPos, stAerocraft1.dwRadius
+mov    @tmp, eax
+fild   @tmp
+fstp   stAerocraft1.stNowPos.fX
+mov    @tmp, ebx
+fild   @tmp
+fstp   stAerocraft1.stNowPos.fY
+mov    stAerocraft1.dwID, 1
 
-    invoke _GetaPos, stAerocraft2.dwRadius
-    mov    @tmp, eax
-    fild   @tmp
-    fstp   stAerocraft2.stNowPos.fX
-    mov    @tmp, ebx
-    fild   @tmp
-    fstp   stAerocraft2.stNowPos.fY
-    mov    stAerocraft2.dwID, 2
-    
-    ret
+invoke _GetaPos, stAerocraft2.dwRadius
+mov    @tmp, eax
+fild   @tmp
+fstp   stAerocraft2.stNowPos.fX
+mov    @tmp, ebx
+fild   @tmp
+fstp   stAerocraft2.stNowPos.fY
+mov    stAerocraft2.dwID, 2
+
+ret
 _AerocraftInit endp
 
 _AerocraftFire proc uses esi lpAerocraft
@@ -1699,48 +1763,68 @@ _ShowMakerInit proc
 _ShowMakerInit endp
 
 _MainKeyboard proc
-        local @outs:dword
-    invoke GetKeyState, 'W'
-    .if ah
-        mov    stAerocraft1.dwNxt, 2
-    .endif
+local @outs:dword
+invoke GetKeyState, 'W'
+.if ah
+mov    stAerocraft1.dwNxt, 2
+.endif
 
-    invoke GetKeyState, 'S'
-    .if ah
-        mov    stAerocraft1.dwNxt, 1
-    .endif
+invoke GetKeyState, 'S'
+.if ah
+mov    stAerocraft1.dwNxt, 1
+.endif
 
-    invoke GetKeyState, 'A'
-    .if ah
-        mov    stAerocraft1.dwNxt, 3
-    .endif
+invoke GetKeyState, 'A'
+.if ah
+mov    stAerocraft1.dwNxt, 3
+.endif
 
-    invoke GetKeyState, 'D'
-    .if ah
-        mov    stAerocraft1.dwNxt, 4
-    .endif
+invoke GetKeyState, 'D'
+.if ah
+mov    stAerocraft1.dwNxt, 4
+.endif
 
-    invoke GetKeyState, 'I'
-    .if ah
-        mov    stAerocraft2.dwNxt, 2
-    .endif
+invoke GetKeyState, 'I'
+.if ah
+mov    stAerocraft2.dwNxt, 2
+.endif
 
-    invoke GetKeyState, 'K'
-    .if ah
-        mov    stAerocraft2.dwNxt, 1
-    .endif
+invoke GetKeyState, 'K'
+.if ah
+mov    stAerocraft2.dwNxt, 1
+.endif
 
-    invoke GetKeyState, 'J'
-    .if ah
-        mov    stAerocraft2.dwNxt, 3
-    .endif
+invoke GetKeyState, 'J'
+.if ah
+mov    stAerocraft2.dwNxt, 3
+.endif
 
-    invoke GetKeyState, 'L'
-    .if ah
-        mov    stAerocraft2.dwNxt, 4
-    .endif
+invoke GetKeyState, 'L'
+.if ah
+mov    stAerocraft2.dwNxt, 4
+.endif
 
-    ret
+invoke GetKeyState, 'Q'
+.if ah
+mov    stAerocraft1.dwForward, 2
+.endif
+
+invoke GetKeyState, 'E'
+.if ah
+mov    stAerocraft1.dwForward, 1
+.endif
+
+invoke GetKeyState, 'U'
+.if ah
+mov    stAerocraft2.dwForward, 2
+.endif
+
+invoke GetKeyState, 'O'
+.if ah
+mov    stAerocraft2.dwForward, 1
+.endif
+
+ret
 _MainKeyboard endp
 
 _MainFrame proc uses eax esi ecx
