@@ -22,28 +22,29 @@
   > 因为每帧才走一次，所以收到键盘读入以后会记录下来，并在帧中进行移动。0表示不变。1234分别为上下左右。移动后归零。
 - 当前速度 dd dwSpeed  
   > 表示每1000帧移动的像素
+- 距离玩家最后一次发射弹药的帧数 dd dwFireStamp
 
 #### 方法
 - 移动 _AerocraftMove  
   > 描述：单纯延当前方向移动，在里面判断逻辑  
-  > 输入：offset AEROCRAFT(目标飞机结构体下标)
-  > 输出：NULL
+  > 输入：offset AEROCRAFT(目标飞机结构体下标)  
+  > 输出：NULL  
 - 更改朝向 _AerocraftVeer
   > 无输入，自动给两个飞机更改朝向，并置零dwNxt
 - 发射子弹 _AerocraftFire
-  > 描述：射出子弹
-  > 输入：飞机地址指针 dd
-  > 输出：eax子弹地址指针
+  > 描述：射出子弹  
+  > 输入：飞机地址指针 dd  
+  > 输出：eax子弹地址指针  
 - 更改武器 _AerocraftChangeWeapon
 - 更改弹药 _AerocraftChangeAmmunition
 - 升级 _AerocraftLevelUp
 - 获得经验 _AerocraftGainExp
-  > 描述：获得经验值，并且返回是否升级。返回值保存在eax中。升级返回1，否则返回0
-  > 输入：飞机的地址指针dd，获得的经验数目dd
-  > 输出：eax
+  > 描述：获得经验值，并且返回是否升级。返回值保存在eax中。升级返回1，否则返回0  
+  > 输入：飞机的地址指针dd，获得的经验数目dd  
+  > 输出：eax  
 - 更改当前生命 _AerocraftChangeNowHP
-  > 描述：更改血量，将当前血量直接加上输入。若超过则设置成满血。不进行归零的逻辑判断
-  > 输入：飞机地址指针dd，有符号数dd
+  > 描述：更改血量，将当前血量直接加上输入。若超过则设置成满血。不进行归零的逻辑判断  
+  > 输入：飞机地址指针dd，有符号数dd  
   > 输出：NULL
 - 更改最大生命值 _AerocraftChangeMaxNowHP
   > 描述：输入输出同上
@@ -141,10 +142,10 @@
 #### 方法
 - 初始化 _BulletPackInit
 - 析构 _BulletPackDestroy
--玩家是否与武器包相撞	_PlayerHitBulletPack
-- 判断飞机是否与武器包相撞，输出撞eax = 1, eax = 0
-- 输入：ptr 玩家@lpPlayer
-- 输出：eax
+- 玩家是否与武器包相撞	_PlayerHitBulletPack
+ > 判断飞机是否与武器包相撞，输出撞eax = 1, eax = 0  
+ > 输入：ptr 玩家@lpPlayer  
+ > 输出：eax
 
 ---
 
@@ -152,14 +153,14 @@
 #### 属性
 - 计时器 dd dwTimer
   > 这个计时器用来维护经验包武器包的生成；玩家发射弹药；
-- 最后一次生成武器包的时间戳 ddLastWeapon
-- 玩家1最后一次发射弹药的时间戳 ddLastFire1
-- 玩家2最后一次发射弹药的时间戳 ddLastFire2
+- 距离最后一次生成武器包的帧数 dd dwWeaponStamp
+- 距离最后一次生成经验包的帧数 dd dwExpStamp
 
 #### 方法
 - 初始化 _MainInit  
   > 描述：  
-&emsp;&emsp;设置时间种子
+&emsp;&emsp;初始化属性数值  
+&emsp;&emsp;设置时间种子  
 &emsp;&emsp;初始化经验包武器包生成计时器  
 &emsp;&emsp;调用玩家初始化函数  
 输入：NULL  
@@ -221,12 +222,12 @@
 
 ### 浮点数相等判断函数 _fequ
   > &emsp;&emsp;描述：传入两个real8分别为x, y, 相等返回1，不相等返回0，异常返回-1，返回值保存在eax中。  
-  > &emsp;&emsp;输入：x:real8, y:real8
+  > &emsp;&emsp;输入：x:real8, y:real8  
   > &emsp;&emsp;输出：eax
 
 ### 计算两点距离 _Getdis
-  > &emsp;&emsp;描述：传入两个POS，返回两点距离，返回值保存在st(0)  
-  > &emsp;&emsp;输入：POS, POS
+  > &emsp;&emsp;描述：传入两个POS，返回两点距离，返回值保存在st(0)   
+  > &emsp;&emsp;输入：POS, POS  
   > &emsp;&emsp;输出：st(0):real8
 
 ### 随机数生成器类 Rand

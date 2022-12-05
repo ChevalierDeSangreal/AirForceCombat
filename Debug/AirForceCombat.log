@@ -1,11 +1,3 @@
 ﻿  Assembling AirForceCombat.asm...
-AirForceCombat.asm(60): warning A4014: instructions and initialized data not supported in BSS segments
-AirForceCombat.asm(61): warning A4014: instructions and initialized data not supported in BSS segments
-AirForceCombat.asm(458): warning A6004: procedure argument or local not referenced : @tmp1
-AirForceCombat.asm(458): warning A6004: procedure argument or local not referenced : @tmp2
-AirForceCombat.asm(458): warning A6004: procedure argument or local not referenced : @tmp4
-AirForceCombat.asm(1485): warning A6004: procedure argument or local not referenced : @hDC
-AirForceCombat.asm(1544): warning A6004: procedure argument or local not referenced : @outs
-AirForceCombat.asm(1629): warning A6004: procedure argument or local not referenced : @char
-legacy_stdio_wide_specifiers.lib(legacy_stdio_wide_specifiers.obj) : warning LNK4210: 存在 .CRT 节；可能有未处理的静态初始值设定项或结束符
-  AirForceCombat.vcxproj -> C:\Users\LNG\Source\Repos\ChevalierDeSangreal\AirForceCombat\Debug\AirForceCombat.exe
+AirForceCombat.asm(5): fatal error A1000: cannot open file : / masm32 / include / windows.inc
+D:\Project\VS\MSBuild\Microsoft\VC\v150\BuildCustomizations\masm.targets(69,5): error MSB3721: 命令“ml.exe /c /nologo /Zi /Fo"Debug\AirForceCombat.obj" /I "C:\masm32\include" /W3 /errorReport:prompt  /TaAirForceCombat.asm”已退出，返回代码为 1。

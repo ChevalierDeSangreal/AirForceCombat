@@ -30,7 +30,7 @@ ID_TIMER        equ     1
 INITHP          equ     1000
 INITR           equ     20
 INITATK         equ     20
-INITATF         equ     10
+INITATF         equ     100
 INITCALIBER     equ     5
 INITBULLETSPEED equ     5
 INITPLANESPEED  equ     50
@@ -47,7 +47,8 @@ INITPACKEXP3	equ     20
 INITPACKR1      equ     10
 INITPACKR2      equ     20
 INITPACKR3      equ     30
-ExpPackMAXNUM	equ		20
+EXPPACKMAXNUM	equ		20
+EXPPACKGANFRE   equ     100
 BULLETPACKMAXNUM equ	20
 
 
@@ -75,23 +76,31 @@ POS ends
 
 ExpPack struct
 
-dwID            dd 0
-dwHP		    dd ?
-dwType		    dd ?
-dwRadius        dd ?
-stNowPos        POS <>
-hBmp            dd ?
-hDC			    dd ?
+    dwID            dd 0
+    dwHP		    dd ?
+    dwType		    dd ?
+    dwRadius        dd ?
+    stNowPos        POS <>
+    hBmp            dd ?
+    hDC			    dd ?
 
 ExpPack ends
+
+MAIN struct
+
+    dwWeaponStamp   dd ?
+    dwExpStamp      dd ?
+
+MAIN ends
+
 BULLETPACK struct
 
-dwID            dd 0
-dwType		    dd ?
-dwRadius        dd ?
-stNowPos        POS <>
-hBmp            dd ?
-hDC			    dd ?
+    dwID            dd 0
+    dwType		    dd ?
+    dwRadius        dd ?
+    stNowPos        POS <>
+    hBmp            dd ?
+    hDC			    dd ?
 
 BULLETPACK ends
 
@@ -104,9 +113,9 @@ INTPOS ends
 
 ShowMaker struct
 
-    hBmpFinal    dd ?
-    hDCFinal     dd ?
-    hBmpBack     dd ?
+    hBmpFinal   dd ?
+    hDCFinal    dd ?
+    hBmpBack    dd ?
 
 ShowMaker ends
 
@@ -130,6 +139,7 @@ AEROCRAFT struct
     dwNxt       dd ?
     dwSpeed     dd ?
     dwBulletSpeed dd ?
+    dwFireStamp dd ?
 
 AEROCRAFT ends
 
@@ -148,12 +158,14 @@ BULLET struct
 BULLET ends
 
 
+
 dwRandSeed      dd 0
+stMain          MAIN <>
 stShowMaker     ShowMaker <>
 stAerocraft1    AEROCRAFT <>
 stAerocraft2    AEROCRAFT <>
 stBullets       BULLET BULLETMAXNUM dup(<>)
-stExpPack       ExpPack ExpPackMAXNUM dup(<>)
+stExpPack       ExpPack EXPPACKMAXNUM dup(<>)
 stBulletPack    BULLETPACK BULLETPACKMAXNUM dup(<>)
 
 _AerocraftLevelUp proto lpaerocraft:dword
@@ -591,7 +603,7 @@ _ExpPackInit proc uses edx esi ebx ecx, types
     mov    edx, 0
     lea    esi, stExpPack
     xor    ecx, ecx
-    .while ecx < ExpPackMAXNUM
+    .while ecx < EXPPACKMAXNUM
         inc    ecx
         mov    eax, [esi].dwID
     .if eax == 0
@@ -960,7 +972,7 @@ _BulletHitExp proc C @lpBullet
 
     mov     @output, 0
     mov     @index, 0
-    .while  @index < ExpPackMAXNUM
+    .while  @index < EXPPACKMAXNUM
         .if     [esi].dwID == 0
             jmp @F 
         .endif
@@ -1320,6 +1332,8 @@ _AerocraftInit proc
     mov    stAerocraft2.dwSpeed, INITPLANESPEED
     mov    stAerocraft1.dwBulletSpeed, INITBULLETSPEED
     mov    stAerocraft2.dwBulletSpeed, INITBULLETSPEED
+    mov    stAerocraft1.dwFireStamp, 0
+    mov    stAerocraft2.dwFireStamp, 0
 
     ; 分别初始化位置
     invoke _GetaPos, stAerocraft1.dwRadius
@@ -1344,17 +1358,22 @@ _AerocraftInit proc
 _AerocraftInit endp
 
 _AerocraftFire proc uses esi lpAerocraft
-assume  esi : ptr AEROCRAFT
-mov     esi, lpAerocraft
-invoke  _BulletInit, [esi].dwID, [esi].dwBulletSpeed, [esi].dwAtf, addr[esi].stNowPos, [esi].dwAtk
-assume  esi : nothing
-ret
+    assume  esi : ptr AEROCRAFT
+    mov     esi, lpAerocraft
+    invoke  _BulletInit, [esi].dwID, [esi].dwBulletSpeed, [esi].dwAtf, addr[esi].stNowPos, [esi].dwAtk
+    assume  esi : nothing
+    ret
 _AerocraftFire  endp
 
 _MainInit proc
 
+    mov    stMain.dwExpStamp, 0
+    mov    stMain.dwWeaponStamp, 0
+
     invoke _RandSetSeed
     invoke _AerocraftInit
+    
+
 
     ret
 _MainInit endp
@@ -1447,146 +1466,164 @@ _ShowMakerFirstPaint proc uses eax
 _ShowMakerFirstPaint endp
 
 _ShowMakerPaint proc
-local @hDC
-local @x, @y, @Plane1D
+        local @hDC
+        local @x, @y, @Plane1D
 
-mov    eax, stAerocraft1.dwRadius
-mov    @Plane1D, eax
-add    @Plane1D, eax
+    mov    eax, stAerocraft1.dwRadius
+    mov    @Plane1D, eax
+    add    @Plane1D, eax
 
-invoke CreatePatternBrush, stShowMaker.hBmpBack
-invoke SelectObject, stShowMaker.hDCFinal, eax
-invoke PatBlt, stShowMaker.hDCFinal, 0, 0, MAP_HIDTH, MAP_WIDTH, PATCOPY
-invoke DeleteObject, eax
+    invoke CreatePatternBrush, stShowMaker.hBmpBack
+    invoke SelectObject, stShowMaker.hDCFinal, eax
+    invoke PatBlt, stShowMaker.hDCFinal, 0, 0, MAP_HIDTH, MAP_WIDTH, PATCOPY
+    invoke DeleteObject, eax
 
-finit
-; 绘制飞机1
-fld    stAerocraft1.stNowPos.fX
-fist   @x
-fld    stAerocraft1.stNowPos.fY
-fist   @y
-mov    eax, stAerocraft1.dwRadius
-sub    @x, eax
-sub    @y, eax
-invoke StretchBlt, stShowMaker.hDCFinal, @x, @y, @Plane1D, @Plane1D, stAerocraft1.hDC, 0, 0, 150, 150, SRCAND
-
-
-; 绘制飞机2
-fld    stAerocraft2.stNowPos.fX
-fist   @x
-fld    stAerocraft2.stNowPos.fY
-fist   @y
-mov    eax, stAerocraft2.dwRadius
-sub    @x, eax
-sub    @y, eax
-invoke StretchBlt, stShowMaker.hDCFinal, @x, @y, @Plane1D, @Plane1D, stAerocraft1.hDC, 0, 0, 150, 150, SRCAND
-
-ret
-_ShowMakerPaint endp
-
-_ShowMakerInit proc
-
-; 创建窗口
-invoke SetWindowRgn, hWinMain, eax, TRUE
-invoke SetWindowPos, hWinMain, HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE OR SWP_NOSIZE
+    finit
+    ; 绘制飞机1
+    fld    stAerocraft1.stNowPos.fX
+    fist   @x
+    fld    stAerocraft1.stNowPos.fY
+    fist   @y
+    mov    eax, stAerocraft1.dwRadius
+    sub    @x, eax
+    sub    @y, eax
+    invoke StretchBlt, stShowMaker.hDCFinal, @x, @y, @Plane1D, @Plane1D, stAerocraft1.hDC, 0, 0, 150, 150, SRCAND
 
 
-invoke _ShowMakerFirstPaint
+    ; 绘制飞机2
+    fld    stAerocraft2.stNowPos.fX
+    fist   @x
+    fld    stAerocraft2.stNowPos.fY
+    fist   @y
+    mov    eax, stAerocraft2.dwRadius
+    sub    @x, eax
+    sub    @y, eax
+    invoke StretchBlt, stShowMaker.hDCFinal, @x, @y, @Plane1D, @Plane1D, stAerocraft1.hDC, 0, 0, 150, 150, SRCAND
 
-invoke SetTimer, hWinMain, ID_TIMER, 20, NULL
+    ret
+    _ShowMakerPaint endp
 
-ret
+    _ShowMakerInit proc
+
+    ; 创建窗口
+    invoke SetWindowRgn, hWinMain, eax, TRUE
+    invoke SetWindowPos, hWinMain, HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE OR SWP_NOSIZE
+
+
+    invoke _ShowMakerFirstPaint
+
+    invoke SetTimer, hWinMain, ID_TIMER, 20, NULL
+
+    ret
 _ShowMakerInit endp
 
 _MainKeyboard proc
-local @outs:dword
-invoke GetKeyState, 'W'
-.if ah
-mov stAerocraft1.dwNxt, 1
-.endif
+        local @outs:dword
+    invoke GetKeyState, 'W'
+    .if ah
+        mov    stAerocraft1.dwNxt, 1
+    .endif
 
-invoke GetKeyState, 'S'
-.if ah
-mov stAerocraft1.dwNxt, 2
-.endif
+    invoke GetKeyState, 'S'
+    .if ah
+        mov    stAerocraft1.dwNxt, 2
+    .endif
 
-invoke GetKeyState, 'A'
-.if ah
-mov stAerocraft1.dwNxt, 3
-.endif
+    invoke GetKeyState, 'A'
+    .if ah
+        mov    stAerocraft1.dwNxt, 3
+    .endif
 
-invoke GetKeyState, 'D'
-.if ah
-mov stAerocraft1.dwNxt, 4
-.endif
+    invoke GetKeyState, 'D'
+    .if ah
+        mov    stAerocraft1.dwNxt, 4
+    .endif
 
-invoke GetKeyState, 'I'
-.if ah
-mov stAerocraft2.dwNxt, 1
-.endif
+    invoke GetKeyState, 'I'
+    .if ah
+        mov    stAerocraft2.dwNxt, 1
+    .endif
 
-invoke GetKeyState, 'K'
-.if ah
-mov stAerocraft2.dwNxt, 2
-.endif
+    invoke GetKeyState, 'K'
+    .if ah
+        mov    stAerocraft2.dwNxt, 2
+    .endif
 
-invoke GetKeyState, 'J'
-.if ah
-mov stAerocraft2.dwNxt, 3
-.endif
+    invoke GetKeyState, 'J'
+    .if ah
+        mov    stAerocraft2.dwNxt, 3
+    .endif
 
-invoke GetKeyState, 'L'
-.if ah
-mov stAerocraft2.dwNxt, 4
-.endif
+    invoke GetKeyState, 'L'
+    .if ah
+        mov    stAerocraft2.dwNxt, 4
+    .endif
 
-ret
+    ret
 _MainKeyboard endp
 
 _MainFrame proc uses eax esi ecx
-;发射子弹
-    inc    dwAttackSpeed
-    mov    eax           ,10
-    .if    eax<dwAttackSpeed
-        mov eax             ,0
-        mov dwAttackSpeed   , eax
+
+    ;发射子弹
+    ; inc    dwAttackSpeed
+    ; mov    eax, 10
+    ; .if    eax < dwAttackSpeed
+    ;     mov    eax, 0
+    ;     mov    dwAttackSpeed, eax
+    ;     invoke _AerocraftFire, addr stAerocraft1
+    ;     invoke _AerocraftFire, addr stAerocraft2
+    ;     invoke printf, addr msg1
+    ; .endif
+    inc    stAerocraft1.dwFireStamp
+    .if stAerocraft1.dwFireStamp >= stAerocraft1.dwAtf
+        mov    stAerocraft1.dwFireStamp, 0
         invoke _AerocraftFire, addr stAerocraft1
-        invoke _AerocraftFire, addr stAerocraft2
-        invoke printf ,addr msg1
     .endif
-;移动子弹
+
+    inc    stAerocraft2.dwFireStamp
+    .if stAerocraft2.dwFireStamp >= stAerocraft2.dwAtf
+        mov    stAerocraft2.dwFireStamp, 0
+        invoke _AerocraftFire, addr stAerocraft2
+    .endif
+
+    ;移动子弹
     assume esi:ptr BULLET
     lea    esi, stBullets
     xor    ecx, ecx
     .while ecx < BULLETMAXNUM
-    inc    ecx
-    mov    eax, [esi].dwID
-    .if eax != 0
-        invoke _BulletMove ,esi
-    .endif
-    add    esi, sizeof BULLET
+        inc    ecx
+        mov    eax, [esi].dwID
+        .if eax != 0
+            invoke _BulletMove ,esi
+        .endif
+        add    esi, sizeof BULLET
     .endw
     assume esi :nothing
-;生成经验包
-    mov  eax, 500
-    invoke  _RandGet
-    .if  eax<2
-        mov  eax, 100
+
+    ;生成经验包
+    inc    stMain.dwExpStamp
+    .if stMain.dwExpStamp >= EXPPACKGANFRE
+        mov    stMain.dwExpStamp, 0
+        
+        mov    eax, 500
         invoke  _RandGet
-        .if eax<10
-            mov eax, 3
-        .elseif eax<40
-            mov eax, 2
-        .else
-            mov eax, 1
+        .if  eax<2
+            mov    eax, 100
+            invoke  _RandGet
+            .if eax<10
+                mov    eax, 3
+            .elseif eax<40
+                mov    eax, 2
+            .else
+                mov    eax, 1
+            .endif
+            invoke printf, addr msg2
+            invoke _ExpPackInit, eax
         .endif
-        invoke printf, addr msg2
-        invoke _ExpPackInit, eax
     .endif
         
-        
     invoke _MainKeyboard
-;
+
     invoke _AerocraftMove, addr stAerocraft1
     invoke _AerocraftMove, addr stAerocraft2
 
