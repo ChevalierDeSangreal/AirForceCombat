@@ -17,6 +17,7 @@
 - 弹药类型 dd dwAmmunition
 - 图片句柄 dd hBmp
 - 绘图句柄 dd hDC
+- 弹药速度 dd dwBulletSpeed
 - 此刻希望的位移 dd dwNxt  
   > 因为每帧才走一次，所以收到键盘读入以后会记录下来，并在帧中进行移动。0表示不变。1234分别为上下左右。移动后归零。
 - 当前速度 dd dwSpeed  
@@ -50,11 +51,14 @@
   > 描述：输入输出同上
 - 更改攻速 _AerocraftChangeAtf
 - 更改口径 _AerocraftChangeCaliber
+- 更改武器 _AerocraftChangeBullet
+   >输入：飞机的指针 ，武器的种类type
 - 初始化 _AerocraftInit 
   > 描述：无输入，自动给两个实体赋各种初值  
 输入：NULL  
 输出：NULL
 - 析构 _AerocraftDestroy
+
 
 ---
 
@@ -132,11 +136,15 @@
 - 空间坐标 POS stNowPos
 - 位图句柄 dd hBmp
 - 绘图句柄 dd hDC
+- 武器类型	dd	dwType
 
 #### 方法
-- 初始化 _WeaponInit
-- 析构 _WeaponDestroy
-
+- 初始化 _BulletPackInit
+- 析构 _BulletPackDestroy
+-玩家是否与武器包相撞	_PlayerHitBulletPack
+- 判断飞机是否与武器包相撞，输出撞eax = 1, eax = 0
+- 输入：ptr 玩家@lpPlayer
+- 输出：eax
 
 ---
 

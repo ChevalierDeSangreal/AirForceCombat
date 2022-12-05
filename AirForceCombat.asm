@@ -11,6 +11,9 @@ includelib      Gdi32.lib
 includelib      user32.lib
 includelib      kernel32.lib
 includelib      msimg32.lib
+includelib      msvcrt.lib
+includelib      ucrt.lib
+includelib      legacy_stdio_definitions.lib
 
 WINDOW_HIDTH    equ     500
 WINDOW_WIDTH    equ     500
@@ -29,10 +32,11 @@ INITR           equ     20
 INITATK         equ     20
 INITATF         equ     10
 INITCALIBER     equ     5
+INITBULLETSPEED equ     5
 INITPLANESPEED  equ     50
 BULLETMAXNUM    equ     500            ; 子弹数量上限，也就是子弹池的规模
-BULLETMAXNUM    equ     500
 BULLETRADIUS    equ     20
+
 
 INITPACKHP1	    equ     100
 INITPACKHP2		equ     125
@@ -44,6 +48,7 @@ INITPACKR1      equ     10
 INITPACKR2      equ     20
 INITPACKR3      equ     30
 ExpPackMAXNUM	equ		20
+BULLETPACKMAXNUM equ	20
 
 
 
@@ -53,12 +58,13 @@ hWinMain        dd ?
 hCursorMain     dd ?
 hCursorMove     dd ?
 dwDebug         dd 0
-
+dwAttackSpeed   dd 0
 
 
 .data
 
-inputmsg1       byte 'too many expbags', 0ah, 0
+msg1       byte 'shoot', 0ah, 0
+msg2       byte 'pack', 0ah, 0
 
 POS struct
 
@@ -78,6 +84,16 @@ hBmp            dd ?
 hDC			    dd ?
 
 ExpPack ends
+BULLETPACK struct
+
+dwID            dd 0
+dwType		    dd ?
+dwRadius        dd ?
+stNowPos        POS <>
+hBmp            dd ?
+hDC			    dd ?
+
+BULLETPACK ends
 
 INTPOS struct
 
@@ -113,6 +129,7 @@ AEROCRAFT struct
     hDC         dd ?
     dwNxt       dd ?
     dwSpeed     dd ?
+    dwBulletSpeed dd ?
 
 AEROCRAFT ends
 
@@ -137,9 +154,13 @@ stAerocraft1    AEROCRAFT <>
 stAerocraft2    AEROCRAFT <>
 stBullets       BULLET BULLETMAXNUM dup(<>)
 stExpPack       ExpPack ExpPackMAXNUM dup(<>)
+stBulletPack    BULLETPACK BULLETPACKMAXNUM dup(<>)
+
 _AerocraftLevelUp proto lpaerocraft:dword
 _AerocraftGainExp proto lpaerocraft:dword, GainExp:dword
 _AerocraftChangeNowHP proto lpaerocraft:dword, num:dword
+_AerocraftChangeBullet proto @lpPlayer:dword, @types:dword
+printf		PROTO C : dword, : vararg
 .const
 szClassName     db      'Clock', 0
 EPS             real8   0.000000001
@@ -634,7 +655,160 @@ _ExpPackAttacked proc  uses esi, lpexppack,attack
     assume esi : nothing
     ret
 _ExpPackAttacked endp
+;************************************************
+;以下为武器包相关函数
+_BulletPackInit proc C @types
+local   @tmp
+pushad
+assume esi : ptr BULLETPACK
+; 分配内存
+mov    edx, 0
+lea    esi, stBulletPack
+xor ecx, ecx
+.while ecx < BULLETPACKMAXNUM
+    inc    ecx
+        mov    eax, [esi].dwID
+        .if eax == 0
+        mov    edx, 1
+        .break
+        .endif
+        add    esi, sizeof ExpPack
+        .endw
 
+        .if edx == 1
+        mov[esi].dwID, ecx
+        .else; 20个满了哥
+        ; invoke printf, offset inputmsg1
+        jmp    endpoint
+        .endif
+        ; 根据等级分配血量
+
+        .if @types == 1
+        mov[esi].dwType, 1
+        mov[esi].dwRadius, INITPACKR1
+
+        .elseif @types == 2
+        mov[esi].dwType, 2
+        mov[esi].dwRadius, INITPACKR2
+
+        .elseif @types == 3
+        mov[esi].dwType, 3
+        mov[esi].dwRadius, INITPACKR3
+        .endif
+        ; 获取位置
+        ; invoke _GetaPos, [esi].dwRadius
+        finit
+        mov    @tmp, eax
+        fild   @tmp
+        fstp[esi].stNowPos.fX
+        mov    @tmp, ebx
+        fild   @tmp
+        fstp[esi].stNowPos.fY
+        mov    eax, esi
+        endpoint :
+    assume esi : nothing
+        popad
+        ret
+        _BulletPackInit endp
+
+
+        _BulletPackDestroy  proc C   @lppack
+        pushad
+        assume esi : ptr BULLETPACK
+        mov    esi, @lppack
+        mov[esi].dwID, 0
+        assume esi : nothing
+        popad
+        ret
+        _BulletPackDestroy endp
+
+        ;*********************************************************************************
+        ; 判断飞机是否与武器包相撞，输出撞eax = 1, eax = 0
+        ; 输入：ptr 玩家@lpPlayer
+        ; 输出：eax
+        ; *********************************************************************************
+        _PlayerHitBulletPack proc C @lpPlayer
+        local   @output, @index
+        local   @Radius, @stPos:POS
+        local   @BupRadius, @stBupPos:POS, @BupType
+        pushad
+
+
+        ; 指针各值赋给局部变量值
+        assume  esi : ptr AEROCRAFT
+        mov     esi, @lpPlayer
+
+        mov     eax, [esi].dwRadius
+        mov     @Radius, eax
+
+        finit
+        fld[esi].stNowPos.fX
+        fld[esi].stNowPos.fY
+        fstp    @stPos.fY
+        fstp    @stPos.fX
+
+        assume  esi : nothing
+
+        assume  esi : ptr BULLETPACK
+        lea     esi, stBulletPack
+
+        mov     @output, 0
+        mov     @index, 0
+        .while  @index < BULLETPACKMAXNUM
+        .if[esi].dwID == 0
+        jmp     @F
+        .endif
+
+        mov     eax, [esi].dwRadius
+        mov     @BupRadius, eax
+
+        mov     eax, [esi].dwType
+        mov     @BupType, eax
+
+        finit
+        fld[esi].stNowPos.fX
+        fld[esi].stNowPos.fY
+        fstp    @stBupPos.fY
+        fstp    @stBupPos.fX
+
+        ; 判断相交
+        invoke  _CheckCircleCross, @stPos, @Radius, @stBupPos, @BupRadius
+        .if     eax == 1
+        mov     @output, 1
+
+        invoke  _AerocraftChangeBullet, @lpPlayer, @BupType
+        ; 析构
+        invoke  _BulletPackDestroy, esi
+        .break
+        .endif
+
+        @@:
+    mov     eax, @index
+        inc     eax
+        mov     @index, eax
+        add     esi, sizeof ExpPack
+        .endw
+        assume  esi : nothing
+
+        popad
+        mov     eax, @output
+        ret
+        _PlayerHitBulletPack endp
+
+        _AerocraftChangeBullet proc  @lpPlayer, @types
+        pushad
+
+        assume  esi : ptr AEROCRAFT
+        mov     esi, @lpPlayer
+
+        mov     eax, @types
+        mov[esi].dwAmmunition, eax
+
+        assume  esi : nothing
+
+        popad
+        ret
+        _AerocraftChangeBullet endp
 ;************************************************
 ;以下为子弹类相关函数
 
@@ -788,7 +962,7 @@ _BulletHitExp proc C @lpBullet
     mov     @index, 0
     .while  @index < ExpPackMAXNUM
         .if     [esi].dwID == 0
-            .continue
+            jmp @F 
         .endif
         mov     eax, [esi].dwHP
         mov     @ExpHP, eax
@@ -826,7 +1000,7 @@ _BulletHitExp proc C @lpBullet
             .endif
             .break
         .endif
-
+@@:
         mov     eax, @index
         inc     eax
         mov     @index, eax
@@ -933,11 +1107,12 @@ _BulletHitCheckReturn:
     ret
 _BulletHitCheck endp
 
-_BulletMove proc uses eax esi ecx ebx , lpbullet
+_BulletMove proc uses  esi ecx ebx , lpbullet
     assume esi : ptr BULLET
     mov    esi, lpbullet
     mov    ecx, [esi].dwSpeed
-    mov    ebx,10
+    mov    ebx, 10
+    xor    eax, eax
     .while ecx!=0
         dec    ecx
         invoke _BitMove ,ebx, [esi].dwForward, addr [esi].stNowPos
@@ -1143,6 +1318,8 @@ _AerocraftInit proc
     mov    stAerocraft2.dwNxt, 0
     mov    stAerocraft1.dwSpeed, INITPLANESPEED
     mov    stAerocraft2.dwSpeed, INITPLANESPEED
+    mov    stAerocraft1.dwBulletSpeed, INITBULLETSPEED
+    mov    stAerocraft2.dwBulletSpeed, INITBULLETSPEED
 
     ; 分别初始化位置
     invoke _GetaPos, stAerocraft1.dwRadius
@@ -1166,6 +1343,13 @@ _AerocraftInit proc
     ret
 _AerocraftInit endp
 
+_AerocraftFire proc uses esi lpAerocraft
+assume  esi : ptr AEROCRAFT
+mov     esi, lpAerocraft
+invoke  _BulletInit, [esi].dwID, [esi].dwBulletSpeed, [esi].dwAtf, addr[esi].stNowPos, [esi].dwAtk
+assume  esi : nothing
+ret
+_AerocraftFire  endp
 
 _MainInit proc
 
@@ -1314,53 +1498,95 @@ invoke SetTimer, hWinMain, ID_TIMER, 20, NULL
 ret
 _ShowMakerInit endp
 
-_MainKeyboard proc char
-
-invoke GetKeyState, 'w'
-.if ah == 1
+_MainKeyboard proc
+local @outs:dword
+invoke GetKeyState, 'W'
+.if ah
 mov stAerocraft1.dwNxt, 1
 .endif
 
-invoke GetKeyState, 's'
-.if ah == 1
+invoke GetKeyState, 'S'
+.if ah
 mov stAerocraft1.dwNxt, 2
 .endif
 
-invoke GetKeyState, 'a'
-.if ah == 1
+invoke GetKeyState, 'A'
+.if ah
 mov stAerocraft1.dwNxt, 3
 .endif
 
-invoke GetKeyState, 'd'
-.if ah == 1
+invoke GetKeyState, 'D'
+.if ah
 mov stAerocraft1.dwNxt, 4
 .endif
 
-invoke GetKeyState, 'i'
-.if ah == 1
+invoke GetKeyState, 'I'
+.if ah
 mov stAerocraft2.dwNxt, 1
 .endif
 
-invoke GetKeyState, 'k'
-.if ah == 1
+invoke GetKeyState, 'K'
+.if ah
 mov stAerocraft2.dwNxt, 2
 .endif
 
-invoke GetKeyState, 'j'
-.if ah == 1
+invoke GetKeyState, 'J'
+.if ah
 mov stAerocraft2.dwNxt, 3
 .endif
 
-invoke GetKeyState, 'l'
-.if ah == 1
+invoke GetKeyState, 'L'
+.if ah
 mov stAerocraft2.dwNxt, 4
 .endif
 
 ret
 _MainKeyboard endp
 
-_MainFrame proc
-    ; invoke _MainFrame
+_MainFrame proc uses eax esi ecx
+;发射子弹
+    inc    dwAttackSpeed
+    mov    eax           ,10
+    .if    eax<dwAttackSpeed
+        mov eax             ,0
+        mov dwAttackSpeed   , eax
+        invoke _AerocraftFire, addr stAerocraft1
+        invoke _AerocraftFire, addr stAerocraft2
+        invoke printf ,addr msg1
+    .endif
+;移动子弹
+    assume esi:ptr BULLET
+    lea    esi, stBullets
+    xor    ecx, ecx
+    .while ecx < BULLETMAXNUM
+    inc    ecx
+    mov    eax, [esi].dwID
+    .if eax != 0
+        invoke _BulletMove ,esi
+    .endif
+    add    esi, sizeof BULLET
+    .endw
+    assume esi :nothing
+;生成经验包
+    mov  eax, 500
+    invoke  _RandGet
+    .if  eax<2
+        mov  eax, 100
+        invoke  _RandGet
+        .if eax<10
+            mov eax, 3
+        .elseif eax<40
+            mov eax, 2
+        .else
+            mov eax, 1
+        .endif
+        invoke printf, addr msg2
+        invoke _ExpPackInit, eax
+    .endif
+        
+        
+    invoke _MainKeyboard
+;
     invoke _AerocraftMove, addr stAerocraft1
     invoke _AerocraftMove, addr stAerocraft2
 
