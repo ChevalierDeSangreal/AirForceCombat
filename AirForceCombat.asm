@@ -40,7 +40,7 @@ ID_TIMER        equ     1
 INITHP          equ     1000
 INITR           equ     20
 INITATK         equ     20
-INITATF         equ     100
+INITATF         equ     10
 INITCALIBER     equ     5
 INITBULLETSPEED equ     5
 INITPLANESPEED  equ     50
@@ -723,105 +723,105 @@ _ExpPackAttacked endp
 ;************************************************
 ;以下为武器包相关函数
 _BulletPackInit proc C @types
-local   @tmp
-pushad
-assume esi : ptr BULLETPACK
-; 分配内存
-mov    edx, 0
-lea    esi, stBulletPack
-xor ecx, ecx
-.while ecx < BULLETPACKMAXNUM
-    inc    ecx
-        mov    eax, [esi].dwID
-        .if eax == 0
-        mov    edx, 1
-        .break
-        .endif
-        add    esi, sizeof EXPPACK
-        .endw
+        local   @tmp
+    pushad
+    assume esi : ptr BULLETPACK
+    ; 分配内存
+    mov    edx, 0
+    lea    esi, stBulletPack
+    xor ecx, ecx
+    .while ecx < BULLETPACKMAXNUM
+        inc    ecx
+            mov    eax, [esi].dwID
+            .if eax == 0
+                mov    edx, 1
+                .break
+            .endif
+            add    esi, sizeof EXPPACK
+    .endw
 
-        .if edx == 1
+    .if edx == 1
         mov[esi].dwID, ecx
-        .else; 20个满了哥
-        ; invoke printf, offset inputmsg1
+    .else; 20个满了哥
+            ; invoke printf, offset inputmsg1
         jmp    endpoint
-        .endif
+    .endif
         ; 根据等级分配血量
-
-        .if @types == 1
+    .if @types == 1
         mov[esi].dwType, 1
         mov[esi].dwRadius, INITPACKR1
 
-        .elseif @types == 2
+    .elseif @types == 2
         mov[esi].dwType, 2
         mov[esi].dwRadius, INITPACKR2
 
-        .elseif @types == 3
+    .elseif @types == 3
         mov[esi].dwType, 3
         mov[esi].dwRadius, INITPACKR3
-        .endif
+    .endif
         ; 获取位置
-        invoke _GetaPos, [esi].dwRadius
-        finit
-        mov    @tmp, eax
-        fild   @tmp
-        fstp[esi].stNowPos.fX
-        mov    @tmp, ebx
-        fild   @tmp
-        fstp[esi].stNowPos.fY
-        mov    eax, esi
-        endpoint :
+    invoke _GetaPos, [esi].dwRadius
+    finit
+    mov    @tmp, eax
+    fild   @tmp
+    fstp[esi].stNowPos.fX
+    mov    @tmp, ebx
+    fild   @tmp
+    fstp[esi].stNowPos.fY
+    mov    eax, esi
+endpoint :
     assume esi : nothing
-        popad
-        ret
-        _BulletPackInit endp
+
+    popad
+    ret
+_BulletPackInit endp
 
 
-        _BulletPackDestroy  proc C   @lppack
-        pushad
-        assume esi : ptr BULLETPACK
-        mov    esi, @lppack
-        mov[esi].dwID, 0
-        assume esi : nothing
-        popad
-        ret
-        _BulletPackDestroy endp
+_BulletPackDestroy  proc C   @lppack
+    pushad
+    assume esi : ptr BULLETPACK
+    mov    esi, @lppack
+    mov    [esi].dwID, 0
+    assume esi : nothing
+    popad
+    ret
+_BulletPackDestroy endp
 
-        ;*********************************************************************************
-        ; 判断飞机是否与武器包相撞，输出撞eax = 1, eax = 0
-        ; 输入：ptr 玩家@lpPlayer
-        ; 输出：eax
-        ; *********************************************************************************
-        _PlayerHitBulletPack proc C @lpPlayer
+;*********************************************************************************
+; 判断飞机是否与武器包相撞，输出撞eax = 1, eax = 0
+; 输入：ptr 玩家@lpPlayer
+; 输出：eax
+; *********************************************************************************
+_PlayerHitBulletPack proc C @lpPlayer
         local   @output, @index
         local   @Radius, @stPos:POS
         local   @BupRadius, @stBupPos:POS, @BupType
-        pushad
+    pushad
 
 
-        ; 指针各值赋给局部变量值
-        assume  esi : ptr AEROCRAFT
-        mov     esi, @lpPlayer
+    ; 指针各值赋给局部变量值
+    assume  esi : ptr AEROCRAFT
+    mov     esi, @lpPlayer
 
-        mov     eax, [esi].dwRadius
-        mov     @Radius, eax
+    mov     eax, [esi].dwRadius
+    mov     @Radius, eax
 
-        finit
-        fld[esi].stNowPos.fX
-        fld[esi].stNowPos.fY
-        fstp    @stPos.fY
-        fstp    @stPos.fX
+    finit
+    fld[esi].stNowPos.fX
+    fld[esi].stNowPos.fY
+    fstp    @stPos.fY
+    fstp    @stPos.fX
 
-        assume  esi : nothing
+    assume  esi : nothing
 
-        assume  esi : ptr BULLETPACK
-        lea     esi, stBulletPack
+    assume  esi : ptr BULLETPACK
+    lea     esi, stBulletPack
 
-        mov     @output, 0
-        mov     @index, 0
-        .while  @index < BULLETPACKMAXNUM
+    mov     @output, 0
+    mov     @index, 0
+    .while  @index < BULLETPACKMAXNUM
         .if[esi].dwID == 0
-        jmp     @F
+            jmp     @F
         .endif
 
         mov     eax, [esi].dwRadius
@@ -836,44 +836,44 @@ xor ecx, ecx
         fstp    @stBupPos.fY
         fstp    @stBupPos.fX
 
-        ; 判断相交
+            ; 判断相交
         invoke  _CheckCircleCross, @stPos, @Radius, @stBupPos, @BupRadius
         .if     eax == 1
-        mov     @output, 1
+            mov     @output, 1
 
-        invoke  _AerocraftChangeBullet, @lpPlayer, @BupType
-        ; 析构
-        invoke  _BulletPackDestroy, esi
-        .break
+            invoke  _AerocraftChangeBullet, @lpPlayer, @BupType
+            ; 析构
+            invoke  _BulletPackDestroy, esi
+            .break
         .endif
 
-        @@:
-    mov     eax, @index
+@@:
+        mov     eax, @index
         inc     eax
         mov     @index, eax
         add     esi, sizeof EXPPACK
-        .endw
-        assume  esi : nothing
+    .endw
+    assume  esi : nothing
 
-        popad
-        mov     eax, @output
-        ret
-        _PlayerHitBulletPack endp
+    popad
+    mov     eax, @output
+    ret
+_PlayerHitBulletPack endp
 
-        _AerocraftChangeBullet proc  @lpPlayer, @types
-        pushad
+_AerocraftChangeBullet proc  @lpPlayer, @types
+    pushad
 
-        assume  esi : ptr AEROCRAFT
-        mov     esi, @lpPlayer
+    assume  esi : ptr AEROCRAFT
+    mov     esi, @lpPlayer
 
-        mov     eax, @types
-        mov[esi].dwAmmunition, eax
+    mov     eax, @types
+    mov[esi].dwAmmunition, eax
 
-        assume  esi : nothing
+    assume  esi : nothing
 
-        popad
-        ret
-        _AerocraftChangeBullet endp
+    popad
+    ret
+_AerocraftChangeBullet endp
 ;************************************************
 ;以下为子弹类相关函数
 
@@ -883,10 +883,9 @@ xor ecx, ecx
 ; 输入：addr BULLET
 ; 输出：eax
 ; *********************************************************************************
-_BulletHitWall proc C @lpBullet
+_BulletHitWall proc uses esi, @lpBullet
     local   @output, @AerocraftID
     local   @Radius, @stPos:POS
-    pushad
     ; assume  esi: ptr STRUCT
 
     
@@ -913,16 +912,14 @@ _BulletHitWall proc C @lpBullet
 
     ; assume  esi: nothing
 ; _FunReturn:
-    popad
     mov     eax, @output
     ret
 _BulletHitWall endp
 
-_BulletHitPlayer proc C @lpBullet
+_BulletHitPlayer proc uses esi, @lpBullet
     local   @output 
     local   @atk, @AerocraftID, @Radius, @stPos:POS
     local   @lpEnemy, @EnemyHP, @EnemyRadius, @stEnemyPos:POS
-    pushad
 
     ; 指针各值赋给局部变量值
     assume  esi: ptr BULLET
@@ -978,26 +975,24 @@ _BulletHitPlayer proc C @lpBullet
         ;.if     eax <= 0
         ;   invoke  _MainGameOver
         ;.else
-            xor eax, eax
-            sub eax, @atk
-            mov @atk,eax
-            invoke  _AerocraftChangeNowHP ,@lpEnemy,@atk; , 谁扣血, 扣多少血@atk
+            xor    eax, eax
+            sub    eax, @atk
+            mov    @atk,eax
+            invoke  _AerocraftChangeNowHP, @lpEnemy, @atk; , 谁扣血, 扣多少血@atk
         ;.endif
     .else
-    ;     mov     @output, 0
+        mov     @output, 0
     .endif
 
-    popad
     mov     eax, @output
     ret
 _BulletHitPlayer endp
 
-_BulletHitExp proc C @lpBullet
+_BulletHitExp proc uses esi, @lpBullet
     local   @output, @index 
     local   @atk, @AerocraftID, @Radius, @stPos:POS
     local   @ExpHP, @ExpRadius, @stExpPos:POS
     local   @Exp
-    pushad
 
     ; 指针各值赋给局部变量值
     assume  esi: ptr BULLET
@@ -1074,7 +1069,6 @@ _BulletHitExp proc C @lpBullet
     assume  esi: nothing
 
 ; _FunReturn:
-    popad
     mov     eax, @output
     ret
 _BulletHitExp endp
@@ -1087,7 +1081,7 @@ _BulletDestroy  proc uses esi, lpbullet
     ret
 _BulletDestroy endp
 
-_BulletInit proc uses edx esi ebx ecx, dwAerocraftID, dwSpeed, dwForward, lpNowPos, dwAtk
+_BulletInit proc uses edx esi ebx ecx edi, lpAerocraft
         local @hDC
     
     assume esi : ptr BULLET
@@ -1110,25 +1104,29 @@ _BulletInit proc uses edx esi ebx ecx, dwAerocraftID, dwSpeed, dwForward, lpNowP
     .else
         jmp    endpoint
     .endif
+
     ; 设置各样属性
-    mov    eax, dwAerocraftID
-    mov    [esi].dwAerocraftID,eax
-    mov    eax, dwSpeed
+    assume edi:ptr AEROCRAFT
+    mov    edi, lpAerocraft
+
+    mov    eax, [edi].dwID
+    mov    [esi].dwAerocraftID, eax
+    mov    eax, [edi].dwSpeed
     mov    [esi].dwSpeed, eax
-    mov    eax, dwForward
+    mov    eax, [edi].dwForward
     mov    [esi].dwForward, eax
-    mov    eax, dwAtk
-    mov    [esi].dwAtk, eax
+    mov    eax, [edi].dwAtk
+    mov    [esi].dwAtk, eax 
+    mov    eax, [edi].dwCaliber
+    mov    [esi].dwRadius, eax
 
-    assume eax : ptr POS
-    mov    eax, lpNowPos
     finit
-    fld    [eax].fX   
+    fld    [edi].stNowPos.fX
     fstp   [esi].stNowPos.fX
-    fld    [eax].fY
+    fld    [edi].stNowPos.fY
     fstp   [esi].stNowPos.fY
-    assume eax : ptr nothing
 
+    assume edi:nothing
 
 
     mov    eax,esi
@@ -1150,7 +1148,7 @@ _BulletHitCheck proc C @lpBullet
     mov     @output, 0
 
     invoke  _BulletHitPlayer, @lpBullet
-    mov      @output, eax
+    mov     @output, eax
     .if     @output == 1
         invoke  _BulletDestroy, @lpBullet ; 注意格式
         jmp     _BulletHitCheckReturn
@@ -1420,7 +1418,7 @@ _AerocraftInit endp
 _AerocraftFire proc uses esi lpAerocraft
     assume  esi : ptr AEROCRAFT
     mov     esi, lpAerocraft
-    invoke  _BulletInit, [esi].dwID, [esi].dwBulletSpeed, [esi].dwAtf, addr[esi].stNowPos, [esi].dwAtk
+    invoke  _BulletInit, esi
     assume  esi : nothing
     ret
 _AerocraftFire  endp
@@ -1762,7 +1760,7 @@ _MainFrame proc uses eax esi ecx
         
         mov    eax, 500
         invoke  _RandGet
-        .if  eax<50
+        .if  eax<2
             mov    eax, 100
             invoke  _RandGet
             .if eax<10
