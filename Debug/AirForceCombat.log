@@ -1,3 +1,11 @@
 ﻿  Assembling AirForceCombat.asm...
-AirForceCombat.asm(5): fatal error A1000: cannot open file : / masm32 / include / windows.inc
-D:\Project\VS\MSBuild\Microsoft\VC\v150\BuildCustomizations\masm.targets(69,5): error MSB3721: 命令“ml.exe /c /nologo /Zi /Fo"Debug\AirForceCombat.obj" /I "C:\masm32\include" /W3 /errorReport:prompt  /TaAirForceCombat.asm”已退出，返回代码为 1。
+AirForceCombat.asm(71): warning A4014: instructions and initialized data not supported in BSS segments
+AirForceCombat.asm(72): warning A4014: instructions and initialized data not supported in BSS segments
+AirForceCombat.asm(488): warning A6004: procedure argument or local not referenced : @tmp1
+AirForceCombat.asm(488): warning A6004: procedure argument or local not referenced : @tmp2
+AirForceCombat.asm(488): warning A6004: procedure argument or local not referenced : @tmp4
+AirForceCombat.asm(1115): warning A6004: procedure argument or local not referenced : @hDC
+AirForceCombat.asm(1630): warning A6004: procedure argument or local not referenced : @hDC
+AirForceCombat.asm(1689): warning A6004: procedure argument or local not referenced : @outs
+AirForceCombat.asm(1794): warning A6004: procedure argument or local not referenced : @char
+  AirForceCombat.vcxproj -> D:\Software\AssemblyLanguage\AirForceCombat\Debug\AirForceCombat.exe

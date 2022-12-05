@@ -5,6 +5,8 @@
 # define IDC_MOVE           101
 # define IDB_BACK           100
 # define IDB_PLANE          101
+# define IDB_BULLET         102
+# define IDB_EXP            103
 
 
 
@@ -13,3 +15,5 @@ IDC_MAIN    CURSOR      "Main.cur"
 IDC_MOVE    CURSOR      "Move.cur"
 IDB_BACK    BITMAP      "Back1.bmp"
 IDB_PLANE   BITMAP      "Plane.bmp"
+IDB_BULLET  BITMAP      "Bullet.bmp"
+IDB_EXP     BITMAP      "Exp.bmp"

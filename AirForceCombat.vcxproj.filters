@@ -67,9 +67,6 @@
     <Image Include="Main.ico">
       <Filter>资源文件</Filter>
     </Image>
-    <Image Include="tmpPlane.bmp">
-      <Filter>资源文件</Filter>
-    </Image>
     <Image Include="Plane.bmp">
       <Filter>资源文件</Filter>
     </Image>

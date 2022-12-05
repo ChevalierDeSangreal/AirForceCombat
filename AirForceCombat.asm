@@ -20,11 +20,21 @@ WINDOW_WIDTH    equ     500
 MAP_HIDTH       equ     500
 MAP_WIDTH       equ     500
 
+; 图片大小常数
+PLANEBMPHIDTH   equ     100
+PLANEBMPWIDTH   equ     100
+BULLETBMPHIDTH  equ     150
+BULLETBMPWIDTH  equ     150
+EXPBMPHIDTH     equ     95
+EXPBMPWIDTH     equ     97
+
 ICO_MAIN        equ     100
 IDC_MAIN        equ     100
 IDC_MOVE        equ     101
 IDB_BACK        equ     100
 IDB_PLANE       equ     101
+IDB_BULLET      equ     102
+IDB_EXP         equ     103
 ID_TIMER        equ     1
 
 INITHP          equ     1000
@@ -69,12 +79,12 @@ msg2       byte 'pack', 0ah, 0
 
 POS struct
 
-fX          real8 ?
-fY          real8 ?
+    fX          real8 ?
+    fY          real8 ?
 
 POS ends
 
-ExpPack struct
+EXPPACK struct
 
     dwID            dd 0
     dwHP		    dd ?
@@ -84,7 +94,7 @@ ExpPack struct
     hBmp            dd ?
     hDC			    dd ?
 
-ExpPack ends
+EXPPACK ends
 
 MAIN struct
 
@@ -116,6 +126,14 @@ ShowMaker struct
     hBmpFinal   dd ?
     hDCFinal    dd ?
     hBmpBack    dd ?
+    hBulletDC0  dd ?
+    hExpDC1     dd ?
+    hExpDC2     dd ?
+    hExpDC3     dd ?
+    hBulletBmp0 dd ?
+    hExpBmp1    dd ?
+    hExpBmp2    dd ?
+    hExpBmp3    dd ?
 
 ShowMaker ends
 
@@ -165,7 +183,7 @@ stShowMaker     ShowMaker <>
 stAerocraft1    AEROCRAFT <>
 stAerocraft2    AEROCRAFT <>
 stBullets       BULLET BULLETMAXNUM dup(<>)
-stExpPack       ExpPack EXPPACKMAXNUM dup(<>)
+stExpPack       EXPPACK EXPPACKMAXNUM dup(<>)
 stBulletPack    BULLETPACK BULLETPACKMAXNUM dup(<>)
 
 _AerocraftLevelUp proto lpaerocraft:dword
@@ -596,9 +614,12 @@ _GetaPos proc uses ecx edx esi, @R
 
 _GetaPos endp
 
+;************************************************
+; 以下为经验包相关函数
+
 _ExpPackInit proc uses edx esi ebx ecx, types
         local @tmp
-    assume esi : ptr ExpPack
+    assume esi : ptr EXPPACK
     ; 分配内存
     mov    edx, 0
     lea    esi, stExpPack
@@ -606,11 +627,11 @@ _ExpPackInit proc uses edx esi ebx ecx, types
     .while ecx < EXPPACKMAXNUM
         inc    ecx
         mov    eax, [esi].dwID
-    .if eax == 0
+        .if eax == 0
             mov    edx, 1
             .break
-    .endif
-            add    esi, sizeof ExpPack
+        .endif
+        add    esi, sizeof EXPPACK
     .endw
 
     .if edx == 1
@@ -625,19 +646,26 @@ _ExpPackInit proc uses edx esi ebx ecx, types
         mov    [esi].dwHP, INITPACKHP1
         mov    [esi].dwType, 1
         mov    [esi].dwRadius, INITPACKR1
+        mov    ebx, stShowMaker.hExpDC1
+        mov    [esi].hDC, ebx
 
     .elseif types == 2
         mov    [esi].dwHP, INITPACKHP2
         mov    [esi].dwType, 2
         mov    [esi].dwRadius, INITPACKR2
+        mov    ebx, stShowMaker.hExpDC2
+        mov    [esi].hDC, ebx
 
     .elseif types == 3
         mov    [esi].dwHP, INITPACKHP3
         mov    [esi].dwType, 3
         mov    [esi].dwRadius, INITPACKR3
+        mov    ebx, stShowMaker.hExpDC3
+        mov    [esi].hDC, ebx
+
     .endif
     ; 获取位置
-    ; invoke _GetaPos, [esi].dwRadius
+    invoke _GetaPos, [esi].dwRadius
     mov    @tmp, eax
     fild   @tmp
     fstp   [esi].stNowPos.fX
@@ -651,7 +679,7 @@ endpoint:
 _ExpPackInit endp
 
 _ExpPackDestroy  proc uses esi,  lpexppack
-    assume esi : ptr ExpPack
+    assume esi : ptr EXPPACK
     mov    esi,lpexppack
     mov    [esi].dwID,0
     assume esi : nothing
@@ -659,7 +687,7 @@ _ExpPackDestroy  proc uses esi,  lpexppack
 _ExpPackDestroy endp
 
 _ExpPackAttacked proc  uses esi, lpexppack,attack
-    assume esi : ptr ExpPack
+    assume esi : ptr EXPPACK
     mov eax,attack
     mov esi, lpexppack
     sub [esi].dwHP, eax
@@ -667,6 +695,7 @@ _ExpPackAttacked proc  uses esi, lpexppack,attack
     assume esi : nothing
     ret
 _ExpPackAttacked endp
+
 ;************************************************
 ;以下为武器包相关函数
 _BulletPackInit proc C @types
@@ -684,7 +713,7 @@ xor ecx, ecx
         mov    edx, 1
         .break
         .endif
-        add    esi, sizeof ExpPack
+        add    esi, sizeof EXPPACK
         .endw
 
         .if edx == 1
@@ -708,7 +737,7 @@ xor ecx, ecx
         mov[esi].dwRadius, INITPACKR3
         .endif
         ; 获取位置
-        ; invoke _GetaPos, [esi].dwRadius
+        invoke _GetaPos, [esi].dwRadius
         finit
         mov    @tmp, eax
         fild   @tmp
@@ -798,7 +827,7 @@ xor ecx, ecx
     mov     eax, @index
         inc     eax
         mov     @index, eax
-        add     esi, sizeof ExpPack
+        add     esi, sizeof EXPPACK
         .endw
         assume  esi : nothing
 
@@ -967,7 +996,7 @@ _BulletHitExp proc C @lpBullet
 
     assume  esi: nothing
     
-    assume  esi: ptr ExpPack
+    assume  esi: ptr EXPPACK
     lea     esi, stExpPack
 
     mov     @output, 0
@@ -1016,7 +1045,7 @@ _BulletHitExp proc C @lpBullet
         mov     eax, @index
         inc     eax
         mov     @index, eax
-        add     esi, sizeof ExpPack
+        add     esi, sizeof EXPPACK
     .endw
     assume  esi: nothing
 
@@ -1035,6 +1064,8 @@ _BulletDestroy  proc uses esi, lpbullet
 _BulletDestroy endp
 
 _BulletInit proc uses edx esi ebx ecx, dwAerocraftID, dwSpeed, dwForward, lpNowPos, dwAtk
+        local @hDC
+    
     assume esi : ptr BULLET
     ; 分配内存
     mov    edx, 0
@@ -1064,6 +1095,7 @@ _BulletInit proc uses edx esi ebx ecx, dwAerocraftID, dwSpeed, dwForward, lpNowP
     mov    [esi].dwForward, eax
     mov    eax, dwAtk
     mov    [esi].dwAtk, eax
+
     assume eax : ptr POS
     mov    eax, lpNowPos
     finit
@@ -1072,9 +1104,13 @@ _BulletInit proc uses edx esi ebx ecx, dwAerocraftID, dwSpeed, dwForward, lpNowP
     fld    [eax].fY
     fstp   [esi].stNowPos.fY
     assume eax : ptr nothing
+
+
+
     mov    eax,esi
 endpoint:
     assume esi : nothing
+
     ret
 _BulletInit endp
 
@@ -1388,9 +1424,17 @@ _ShowMakerDestroy proc
     invoke DeleteDC, stAerocraft1.hDC
     invoke DeleteDC, stAerocraft2.hDC
     invoke DeleteDC, stShowMaker.hDCFinal
+    invoke DeleteDC, stShowMaker.hBulletDC0
+    invoke DeleteDC, stShowMaker.hExpDC1
+    invoke DeleteDC, stShowMaker.hExpDC2
+    invoke DeleteDC, stShowMaker.hExpDC3
     invoke DeleteObject, stShowMaker.hBmpFinal
     invoke DeleteObject, stAerocraft1.hBmp
     invoke DeleteObject, stAerocraft2.hBmp
+    invoke DeleteObject, stShowMaker.hBulletBmp0
+    invoke DeleteObject, stShowMaker.hExpBmp1
+    invoke DeleteObject, stShowMaker.hExpBmp2
+    invoke DeleteObject, stShowMaker.hExpBmp3
     ; <<<<<删除完成
 
     ret
@@ -1398,11 +1442,7 @@ _ShowMakerDestroy endp
 
 _ShowMakerFirstPaint proc uses eax
         local @hDC
-        local @x, @y, @Plane1D
-
-    mov    eax, stAerocraft1.dwRadius
-    mov    @Plane1D, eax
-    add    @Plane1D, eax
+        local @x, @y, @D
     
     invoke GetDC, hWinMain
     mov    @hDC, eax
@@ -1412,6 +1452,14 @@ _ShowMakerFirstPaint proc uses eax
     mov    stAerocraft1.hDC, eax
     invoke CreateCompatibleDC, @hDC
     mov    stAerocraft2.hDC, eax
+    invoke CreateCompatibleDC, @hDC
+    mov    stShowMaker.hBulletDC0, eax
+    invoke CreateCompatibleDC, @hDC
+    mov    stShowMaker.hExpDC1, eax
+    invoke CreateCompatibleDC, @hDC
+    mov    stShowMaker.hExpDC2, eax
+    invoke CreateCompatibleDC, @hDC
+    mov    stShowMaker.hExpDC3, eax
     invoke CreateCompatibleBitmap, @hDC, MAP_HIDTH, MAP_WIDTH
     mov    stShowMaker.hBmpFinal, eax
     invoke ReleaseDC, hWinMain, @hDC
@@ -1422,10 +1470,23 @@ _ShowMakerFirstPaint proc uses eax
     mov    stAerocraft1.hBmp, eax
     invoke LoadBitmap, hInstance, IDB_PLANE
     mov    stAerocraft2.hBmp, eax
+    invoke LoadBitmap, hInstance, IDB_BULLET
+    mov    stShowMaker.hBulletBmp0, eax
+    invoke LoadBitmap, hInstance, IDB_EXP
+    mov    stShowMaker.hExpBmp1, eax
+    invoke LoadBitmap, hInstance, IDB_EXP
+    mov    stShowMaker.hExpBmp2, eax
+    invoke LoadBitmap, hInstance, IDB_EXP
+    mov    stShowMaker.hExpBmp3, eax
 
     invoke SelectObject, stAerocraft1.hDC, stAerocraft1.hBmp
     invoke SelectObject, stAerocraft2.hDC, stAerocraft2.hBmp
     invoke SelectObject, stShowMaker.hDCFinal, stShowMaker.hBmpFinal
+    invoke SelectObject, stShowMaker.hBulletDC0, stShowMaker.hBulletBmp0
+    invoke SelectObject, stShowMaker.hExpDC1, stShowMaker.hExpBmp1
+    invoke SelectObject, stShowMaker.hExpDC2, stShowMaker.hExpBmp2
+    invoke SelectObject, stShowMaker.hExpDC3, stShowMaker.hExpBmp3
+
 
     ; 绘制背景
     invoke CreatePatternBrush, stShowMaker.hBmpBack
@@ -1434,12 +1495,15 @@ _ShowMakerFirstPaint proc uses eax
     invoke DeleteObject, eax
 
     ; 放缩图片
-    ; invoke StretchBlt, @htmp1DC, 0, 0, @Plane1D, @Plane1D, stAerocraft1.hDC, 0, 0, 150, 150, SRCAND
+    ; invoke StretchBlt, @htmp1DC, 0, 0, @D, @D, stAerocraft1.hDC, 0, 0, 150, 150, SRCAND
 
     ; invoke TransparentBlt, hDCFinal, 0, 0, CLOCK_SIZE, CLOCK_SIZE, @hDCCircle, 0, 0, CLOCK_SIZE, CLOCK_SIZE, 0
     
     finit
     ; 绘制飞机1
+    mov    eax, stAerocraft1.dwRadius
+    mov    @D, eax
+    add    @D, eax
     fld    stAerocraft1.stNowPos.fX
     fist   @x
     fld    stAerocraft1.stNowPos.fY
@@ -1447,11 +1511,14 @@ _ShowMakerFirstPaint proc uses eax
     mov    eax, stAerocraft1.dwRadius
     sub    @x, eax
     sub    @y, eax
-    invoke StretchBlt, stShowMaker.hDCFinal, @x, @y, @Plane1D, @Plane1D, stAerocraft1.hDC, 0, 0, 150, 150, SRCAND
-    ; invoke BitBlt, @x, @y, @Plane1D, @Plane1D, 0, 0, @Plane1D, @Plane1D, SRCAND
-    ; invoke TransparentBlt, stShowMaker.hDCFinal, @x, @y, MAP_HIDTH, MAP_WIDTH, @htmp1DC, 0, 0, @Plane1D, @Plane1D, 0
+    invoke StretchBlt, stShowMaker.hDCFinal, @x, @y, @D, @D, stAerocraft1.hDC, 0, 0, PLANEBMPHIDTH, PLANEBMPWIDTH, SRCAND
+    ; invoke BitBlt, @x, @y, @D, @D, 0, 0, @D, @D, SRCAND
+    ; invoke TransparentBlt, stShowMaker.hDCFinal, @x, @y, MAP_HIDTH, MAP_WIDTH, @htmp1DC, 0, 0, @D, @D, 0
 
     ; 绘制飞机2
+    mov    eax, stAerocraft2.dwRadius
+    mov    @D, eax
+    add    @D, eax
     fld    stAerocraft2.stNowPos.fX
     fist   @x
     fld    stAerocraft2.stNowPos.fY
@@ -1459,27 +1526,82 @@ _ShowMakerFirstPaint proc uses eax
     mov    eax, stAerocraft2.dwRadius
     sub    @x, eax
     sub    @y, eax
-    invoke StretchBlt, stShowMaker.hDCFinal, @x, @y, @Plane1D, @Plane1D, stAerocraft1.hDC, 0, 0, 150, 150, SRCAND
+    invoke StretchBlt, stShowMaker.hDCFinal, @x, @y, @D, @D, stAerocraft2.hDC, 0, 0, PLANEBMPHIDTH, PLANEBMPWIDTH, SRCAND
 
 
     ret
 _ShowMakerFirstPaint endp
 
-_ShowMakerPaint proc
+_ShowMakerPaint proc uses eax ecx esi
         local @hDC
-        local @x, @y, @Plane1D
+        local @x, @y, @D
 
-    mov    eax, stAerocraft1.dwRadius
-    mov    @Plane1D, eax
-    add    @Plane1D, eax
 
+    ; 绘制背景
     invoke CreatePatternBrush, stShowMaker.hBmpBack
     invoke SelectObject, stShowMaker.hDCFinal, eax
     invoke PatBlt, stShowMaker.hDCFinal, 0, 0, MAP_HIDTH, MAP_WIDTH, PATCOPY
     invoke DeleteObject, eax
 
-    finit
+
+    ; 绘制子弹
+    assume esi:ptr BULLET
+    xor    ecx, ecx
+    lea    esi, stBullets
+    .while ecx < BULLETMAXNUM
+        inc    ecx
+        .if [esi].dwID == 0
+            .continue
+        .endif
+
+        finit
+        mov    eax, [esi].dwRadius
+        mov    @D, eax
+        add    @D, eax
+        fld    [esi].stNowPos.fX
+        fist   @x
+        fld    [esi].stNowPos.fY
+        fist   @y
+        mov    eax, [esi].dwRadius
+        sub    @x, eax
+        sub    @y, eax
+        invoke StretchBlt, stShowMaker.hDCFinal, @x, @y, @D, @D, stShowMaker.hBulletDC0, 0, 0, BULLETBMPHIDTH, BULLETBMPWIDTH, SRCAND
+        
+        add    esi, sizeof BULLET
+    .endw
+    assume esi:nothing
+
+    ; 绘制经验包
+    assume esi:ptr EXPPACK
+    lea    esi, stExpPack
+    xor    ecx, ecx
+    .while ecx < EXPPACKMAXNUM
+        inc    ecx
+        .if [esi].dwID == 0
+            .continue
+        .endif
+
+        finit
+        mov    eax, [esi].dwRadius
+        mov    @D, eax
+        add    @D, eax
+        fld    [esi].stNowPos.fX
+        fist   @x
+        fld    [esi].stNowPos.fY
+        fist   @y
+        mov    eax, [esi].dwRadius
+        sub    @x, eax
+        sub    @y, eax
+        invoke StretchBlt, stShowMaker.hDCFinal, @x, @y, @D, @D, [esi].hDC, 0, 0, EXPBMPHIDTH, EXPBMPWIDTH, SRCAND
+    
+    .endw
+    assume esi:nothing
+    
     ; 绘制飞机1
+    finit
+    mov    eax, stAerocraft1.dwRadius
+    mov    @D, eax
+    add    @D, eax
     fld    stAerocraft1.stNowPos.fX
     fist   @x
     fld    stAerocraft1.stNowPos.fY
@@ -1487,10 +1609,13 @@ _ShowMakerPaint proc
     mov    eax, stAerocraft1.dwRadius
     sub    @x, eax
     sub    @y, eax
-    invoke StretchBlt, stShowMaker.hDCFinal, @x, @y, @Plane1D, @Plane1D, stAerocraft1.hDC, 0, 0, 150, 150, SRCAND
+    invoke StretchBlt, stShowMaker.hDCFinal, @x, @y, @D, @D, stAerocraft1.hDC, 0, 0, PLANEBMPHIDTH, PLANEBMPWIDTH, SRCAND
 
 
     ; 绘制飞机2
+    mov    eax, stAerocraft2.dwRadius
+    mov    @D, eax
+    add    @D, eax
     fld    stAerocraft2.stNowPos.fX
     fist   @x
     fld    stAerocraft2.stNowPos.fY
@@ -1498,12 +1623,13 @@ _ShowMakerPaint proc
     mov    eax, stAerocraft2.dwRadius
     sub    @x, eax
     sub    @y, eax
-    invoke StretchBlt, stShowMaker.hDCFinal, @x, @y, @Plane1D, @Plane1D, stAerocraft1.hDC, 0, 0, 150, 150, SRCAND
+    invoke StretchBlt, stShowMaker.hDCFinal, @x, @y, @D, @D, stAerocraft2.hDC, 0, 0, PLANEBMPHIDTH, PLANEBMPWIDTH, SRCAND
+
 
     ret
-    _ShowMakerPaint endp
+_ShowMakerPaint endp
 
-    _ShowMakerInit proc
+_ShowMakerInit proc
 
     ; 创建窗口
     invoke SetWindowRgn, hWinMain, eax, TRUE
@@ -1575,13 +1701,15 @@ _MainFrame proc uses eax esi ecx
     ;     invoke printf, addr msg1
     ; .endif
     inc    stAerocraft1.dwFireStamp
-    .if stAerocraft1.dwFireStamp >= stAerocraft1.dwAtf
+    mov    eax, stAerocraft1.dwAtf
+    .if stAerocraft1.dwFireStamp >= eax
         mov    stAerocraft1.dwFireStamp, 0
         invoke _AerocraftFire, addr stAerocraft1
     .endif
 
     inc    stAerocraft2.dwFireStamp
-    .if stAerocraft2.dwFireStamp >= stAerocraft2.dwAtf
+    mov    eax, stAerocraft2.dwAtf
+    .if stAerocraft2.dwFireStamp >= eax
         mov    stAerocraft2.dwFireStamp, 0
         invoke _AerocraftFire, addr stAerocraft2
     .endif
@@ -1601,13 +1729,13 @@ _MainFrame proc uses eax esi ecx
     assume esi :nothing
 
     ;生成经验包
-    inc    stMain.dwExpStamp
-    .if stMain.dwExpStamp >= EXPPACKGANFRE
+    ; inc    stMain.dwExpStamp
+    ; .if stMain.dwExpStamp >= EXPPACKGANFRE
         mov    stMain.dwExpStamp, 0
         
         mov    eax, 500
         invoke  _RandGet
-        .if  eax<2
+        .if  eax<50
             mov    eax, 100
             invoke  _RandGet
             .if eax<10
@@ -1620,7 +1748,7 @@ _MainFrame proc uses eax esi ecx
             invoke printf, addr msg2
             invoke _ExpPackInit, eax
         .endif
-    .endif
+    ; .endif
         
     invoke _MainKeyboard
 

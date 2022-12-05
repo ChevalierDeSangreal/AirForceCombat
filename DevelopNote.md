@@ -73,13 +73,12 @@
 - 半径 dd dwRadius
 - 当前位置 POS stNowPos
 - 伤害 dd dwAtk
-- 位图句柄 dd hBmp
 - 绘图句柄 dd hDC
 
 #### 方法
 - 移动 _BulletMov
 - 初始化 _BulletInit   
-  > 描述：在子弹列表之中寻找空位，分配给新的子弹，其ID为从一开始的数，返回分配的地址。  
+  > 描述：在子弹列表之中寻找空位，分配给新的子弹，其ID为从一开始的数，返回分配的地址。取得子弹类型对应的hDC  
   > 输入：子弹所属的飞机  dd，子弹的速度 dd,子弹的朝向 dd, 子弹的位置 dd，子弹的攻击力 dd  
   > 输出：子弹类的指针
 - 析构 _BulletDestroy  
@@ -112,21 +111,20 @@
 - 当前生命值 dd dwHP
 - 类型编号 dd dwType
 - 当前位置 POS stNowPos
-- 位图句柄 dd hBmp
 - 绘图句柄 dd hDC
 
 #### 方法
 - 初始化 _ExpPackInit
-  > 描述：在经验包列表之中寻找空位，分配给新的经验包，其ID为在表中的序号，返回分配的地址。
-  > 输入：经验包的类型  dd
+  > 描述：在经验包列表之中寻找空位，分配给新的经验包，其ID为在表中的序号，返回分配的地址。取得Exp对应的hDC  
+  > 输入：经验包的类型  dd   
   > 输出：经验包的指针
 - 析构 _ExpPackDestroy
-  > 描述：将所传入的经验包ID置为0，设置为无效数据
-  > 输入：经验包指针  dd
+  > 描述：将所传入的经验包ID置为0，设置为无效数据  
+  > 输入：经验包指针  dd  
   > 输出：null
 - 被子弹击中 _ExpPackAttacked
-  > 描述：扣除经验包一定的血量
-  > 输入：经验包指针  dd；扣除血量 dd
+  > 描述：扣除经验包一定的血量  
+  > 输入：经验包指针  dd；扣除血量 dd  
   > 输出：eax（当前血量）
 ---
 
@@ -201,8 +199,17 @@
 #### 属性
 - 背景图片的位图句柄 dd hBmpBack
 - 背景图片的绘图句柄 dd hDCBack
+- 子弹类型0的绘图句柄 dd hBulletDC0
+- 经验包类型1的绘图句柄 dd hExpDC1
+- 经验包类型2的绘图句柄 dd hExpDC2
+- 经验包类型3的绘图句柄 dd hExpDC3
+- dd hBulletBmp0
+- dd hExpBmp1
+- dd hExpBmp2
+- dd hExpBmp3
 #### 方法
 - 重绘图像 _ShowMakerPaint
+- 初始化很多句柄并第一次显示图像 _ShowMakerPaint
 - 初始化 _ShowMakerInit
 - 析构 _ShowMakerDestroy
 
