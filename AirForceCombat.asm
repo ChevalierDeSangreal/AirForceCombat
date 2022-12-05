@@ -70,13 +70,15 @@ hCursorMain     dd ?
 hCursorMove     dd ?
 dwDebug         dd 0
 dwAttackSpeed   dd 0
+testsnum        dd 0
 
 
 .data
 
 msg1       byte 'shoot', 0ah, 0
 msg2       byte 'pack', 0ah, 0
-
+msg3       byte 'printpack', 0ah, 0
+msg4       byte '%d',0
 POS struct
 
     fX          real8 ?
@@ -665,7 +667,7 @@ _ExpPackInit proc uses edx esi ebx ecx, types
         jmp    @F
     .endif
         ; 根据等级分配血量
-
+    mov  testsnum, edx
     .if types == 1
         mov    [esi].dwHP, INITPACKHP1
         mov    [esi].dwType, 1
@@ -737,7 +739,7 @@ _BulletPackInit proc C @types
                 mov    edx, 1
                 .break
             .endif
-            add    esi, sizeof EXPPACK
+            add    esi, sizeof BULLETPACK
     .endw
 
     .if edx == 1
@@ -993,7 +995,7 @@ _BulletHitExp proc uses esi, @lpBullet
     local   @output, @index 
     local   @atk, @AerocraftID, @Radius, @stPos:POS
     local   @ExpHP, @ExpRadius, @stExpPos:POS
-    local   @Exp
+    local   @Exp,@tmp
 
     ; 指针各值赋给局部变量值
     assume  esi: ptr BULLET
@@ -1044,6 +1046,7 @@ _BulletHitExp proc uses esi, @lpBullet
             
             mov     eax, @ExpHP
             sub     eax, @atk
+
             .if     eax <= 0
                 ; 爆经验力
                 .if     [esi].dwType == 1
@@ -1053,6 +1056,7 @@ _BulletHitExp proc uses esi, @lpBullet
                 .else
                     mov     @Exp, INITPACKEXP3
                 .endif
+                push esi
                 push eax
                 .if @AerocraftID==1
                     lea eax, stAerocraft1
@@ -1062,6 +1066,7 @@ _BulletHitExp proc uses esi, @lpBullet
                 invoke  _AerocraftGainExp, eax, @Exp
                 ; 析构
                 pop eax
+                pop esi
                 invoke  _ExpPackDestroy, esi
             .else
                 invoke  _ExpPackAttacked, esi, @atk
@@ -1320,7 +1325,7 @@ _AerocraftLevelUp proc uses esi ,lpaerocraft
     assume	esi : nothing
     ;?还未解决，怎么实现升级选择
     ret
-_AerocraftLevelUp endp
+     endp
 
 _AerocraftVeer proc uses esi eax
     assume	esi : ptr AEROCRAFT
@@ -1582,7 +1587,7 @@ _ShowMakerPaint proc uses eax ecx esi
         inc    ecx
         push   ecx
         .if [esi].dwID == 0
-            .continue
+            jmp @F
         .endif
 
         finit
@@ -1597,9 +1602,10 @@ _ShowMakerPaint proc uses eax ecx esi
         sub    @x, eax
         sub    @y, eax
         invoke StretchBlt, stShowMaker.hDCFinal, @x, @y, @D, @D, stShowMaker.hBulletDC0, 0, 0, BULLETBMPHIDTH, BULLETBMPWIDTH, SRCAND
-        
+@@:
         add    esi, sizeof BULLET
         pop    ecx
+
     .endw
     assume esi:nothing
 
@@ -1610,10 +1616,17 @@ _ShowMakerPaint proc uses eax ecx esi
     .while ecx < EXPPACKMAXNUM
         mov    eax, [esi].dwID; 调试用
         inc    ecx
+        push   ecx
         .if [esi].dwID == 0
-            .continue
+            jmp @F
         .endif
-
+        ;测试用
+        push eax
+        xor eax,eax
+        .if testsnum!=eax
+            invoke printf,addr msg3
+        .endif
+        pop eax
         finit
         mov    eax, [esi].dwRadius
         mov    @D, eax
@@ -1628,8 +1641,15 @@ _ShowMakerPaint proc uses eax ecx esi
         push   ecx
         invoke StretchBlt, stShowMaker.hDCFinal, @x, @y, @D, @D, [esi].hDC, 0, 0, EXPBMPHIDTH, EXPBMPWIDTH, SRCAND
         pop    ecx
+    @@:
         add    esi, sizeof EXPPACK
+        pop    ecx
     .endw
+;测试用
+    push eax
+    mov eax ,0
+    mov testsnum,eax
+    pop eax
     assume esi:nothing
     
     ; 绘制飞机1
@@ -1724,7 +1744,7 @@ _MainKeyboard proc
 _MainKeyboard endp
 
 _MainFrame proc uses eax esi ecx
-
+    local @tmp
     ;发射子弹
      ;inc    dwAttackSpeed
      ;mov    eax, 10
@@ -1771,6 +1791,8 @@ _MainFrame proc uses eax esi ecx
         mov    eax, 500
         invoke  _RandGet
         .if  eax<2
+            mov eax,0
+            invoke _RandSetSeed
             mov    eax, 100
             invoke  _RandGet
             .if eax<10
