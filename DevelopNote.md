@@ -239,6 +239,12 @@
 - dd hBarrierDC
 - dd hUIBmp
 - dd hUIDC
+- dd hRK1DC
+- dd hRK1Bmp
+- dd hRK2Bmp
+- dd hRK2DC
+- dd hRK3Bmp
+- dd hRK3DC
 
 #### 方法
 - 重绘图像 _ShowMakerPaint

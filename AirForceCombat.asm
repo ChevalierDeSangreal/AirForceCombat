@@ -25,8 +25,8 @@ PLANEBMPHIDTH   equ     128
 PLANEBMPWIDTH   equ     128
 BULLETBMPHIDTH  equ     128
 BULLETBMPWIDTH  equ     128
-EXPBMPHIDTH     equ     128
-EXPBMPWIDTH     equ     128
+EXPBMPHIDTH     equ     100
+EXPBMPWIDTH     equ     100
 BARRIERBMPHIDTH equ     128
 BARRIERBMPWIDTH equ     128
 UIBMPHIDTH      equ     1400
@@ -44,9 +44,12 @@ IDB_BRRIER      equ     105
 IDB_PLANE2      equ     106
 IDB_BULLET2     equ     107
 IDB_UI          equ     108
+IDB_RK1         equ     109
+IDB_RK2         equ     110
+IDB_RK3         equ     111
 ID_TIMER        equ     1
 
-INITHP          equ     1000
+INITHP          equ     100
 INITR           equ     20
 INITATK         equ     20
 INITATF         equ     10
@@ -172,6 +175,12 @@ SHOWMAKER struct
     hMaskDC     dd ?
     hUIBmp      dd ?
     hUIDC       dd ?
+    hRK1Bmp     dd ?
+    hRK1DC      dd ?
+    hRK2Bmp     dd ?
+    hRK2DC      dd ?
+    hRK3DC      dd ?
+    hRK3Bmp     dd ?
 
 SHOWMAKER ends
 
@@ -211,7 +220,7 @@ BULLET struct
     dwAtk       dd ?
     hBmp        dd ?
     hDC         dd ?
-
+    dwType      dd 0
 BULLET ends
 
 
@@ -230,12 +239,14 @@ _AerocraftLevelUp proto lpaerocraft:dword
 _AerocraftGainExp proto lpaerocraft:dword, GainExp:dword
 _AerocraftChangeNowHP proto lpaerocraft:dword, num:dword
 _AerocraftChangeBullet proto @lpPlayer:dword, @types:dword
+_MainGameOver proto ID:dword
 printf		PROTO C : dword, : vararg
 
 .const
 szClassName     db      'Clock', 0
 EPS             real8   0.000000001
-
+ONEPOINTFIVE	real8	1.5
+TWOPOINTFIVE	real8	2.5
 .code
 
 ; printf	PROTO C : dword, : vararg
@@ -950,18 +961,25 @@ _BulletPackInit proc C @types
         jmp    endpoint
     .endif
         ; 根据等级分配血量
+    push eax
     .if @types == 1
         mov[esi].dwType, 1
-        mov[esi].dwRadius, INITPACKR1
+        mov[esi].dwRadius, INITPACKR3
+        mov    eax, stShowMaker.hRK1DC
+        mov[esi].hDC, eax
 
     .elseif @types == 2
         mov[esi].dwType, 2
-        mov[esi].dwRadius, INITPACKR2
-
-    .elseif @types == 3
+        mov[esi].dwRadius, INITPACKR3
+        mov    eax, stShowMaker.hRK2DC
+        mov[esi].hDC, eax
+    .else
         mov[esi].dwType, 3
         mov[esi].dwRadius, INITPACKR3
+        mov    eax, stShowMaker.hRK3DC
+        mov[esi].hDC, eax
     .endif
+    pop eax
         ; 获取位置
     invoke _GetaPos, [esi].dwRadius
     finit
@@ -1216,77 +1234,103 @@ _BulletHitWall proc uses esi, @lpBullet
     ret
 _BulletHitWall endp
 
-_BulletHitPlayer proc uses esi, @lpBullet
-    local   @output 
-    local   @atk, @AerocraftID, @Radius, @stPos:POS
-    local   @lpEnemy, @EnemyHP, @EnemyRadius, @stEnemyPos:POS
+_BulletHitPlayer proc C @lpBullet
+local   @output
+local   @tmp
+local   @Type, @atk, @AerocraftID, @Radius, @stPos:POS
+local   @lpEnemy, @EnemyHP, @EnemyRadius, @stEnemyPos:POS
+pushad
 
-    ; 指针各值赋给局部变量值
-    assume  esi: ptr BULLET
-    mov     esi, @lpBullet
+; 指针各值赋给局部变量值
+assume  esi : ptr BULLET
+mov     esi, @lpBullet
 
-    mov     eax, [esi].dwAtk
-    mov     @atk, eax
+mov     eax, [esi].dwType
+mov     @Type, eax
 
-    mov     eax, [esi].dwAerocraftID
-    mov     @AerocraftID, eax
-    .if     @AerocraftID == 1
-        lea     eax, stAerocraft2
-        mov     @lpEnemy, eax
+mov     eax, [esi].dwAtk
+.if      @Type == 2
+finit
+mov     @tmp, eax
+fild    @tmp
+fld    ONEPOINTFIVE
+fmul
+fist    @tmp
+mov     eax, @tmp
+.endif
+mov     @atk, eax
+
+mov     eax, [esi].dwAerocraftID
+mov     @AerocraftID, eax
+.if     @AerocraftID == 1
+lea     eax, stAerocraft2
+mov     @lpEnemy, eax
+.else
+lea     eax, stAerocraft1
+mov     @lpEnemy, eax
+.endif
+
+mov     eax, [esi].dwRadius
+.if      @Type == 3
+finit
+mov     @tmp, eax
+fild    @tmp
+fld    TWOPOINTFIVE
+fmul
+fist    @tmp
+mov     eax, @tmp
+.endif
+mov     @Radius, eax
+
+finit
+fld[esi].stNowPos.fX
+fld[esi].stNowPos.fY
+fstp    @stPos.fY
+fstp    @stPos.fX
+
+assume  esi : nothing
+
+assume  esi : ptr AEROCRAFT
+mov     esi, @lpEnemy
+
+mov     eax, [esi].dwHP
+mov     @EnemyHP, eax
+
+mov     eax, [esi].dwRadius
+mov     @EnemyRadius, eax
+
+finit
+fld[esi].stNowPos.fX
+fld[esi].stNowPos.fY
+fstp    @stEnemyPos.fY
+fstp    @stEnemyPos.fX
+
+assume  esi : nothing
+
+; 判断相交
+invoke  _CheckCircleCross, @stPos, @Radius, @stEnemyPos, @EnemyRadius
+.if     eax == 1; 相交即命中
+    mov     @output, 1
+    mov     eax, @EnemyHP
+    sub     eax, @atk
+    .if     eax == 0||eax>80000000h
+        invoke  _MainGameOver ,@AerocraftID
     .else
-        lea     eax, stAerocraft1
-        mov     @lpEnemy, eax
+        mov eax,0
+        sub eax,@atk
+        mov @atk,eax
+        mov  @AerocraftID,eax
+       invoke  _AerocraftChangeNowHP,@lpEnemy,@atk;, 谁扣血, 扣多少血@atk
     .endif
+.else
+     mov     @output, 0
+.endif
 
-    mov     eax, [esi].dwRadius
-    mov     @Radius, eax
-
-    finit
-    fld     [esi].stNowPos.fX
-    fld     [esi].stNowPos.fY
-    fstp    @stPos.fY
-    fstp    @stPos.fX
-
-    assume  esi: nothing
-
-    assume  esi: ptr AEROCRAFT
-    mov     esi, @lpEnemy
-
-    mov     eax, [esi].dwHP
-    mov     @EnemyHP, eax
-
-    mov     eax, [esi].dwRadius
-    mov     @EnemyRadius, eax
-
-    finit
-    fld     [esi].stNowPos.fX
-    fld     [esi].stNowPos.fY
-    fstp    @stEnemyPos.fY
-    fstp    @stEnemyPos.fX
-
-    assume  esi: nothing
-
-    ; 判断相交
-    invoke  _CheckCircleCross, @stPos, @Radius, @stEnemyPos, @EnemyRadius
-    .if     eax == 1    ; 相交即命中
-        mov     @output, 1
-        mov     eax, @EnemyHP
-        sub     eax, @atk
-        ;.if     eax <= 0
-        ;   invoke  _MainGameOver
-        ;.else
-            xor    eax, eax
-            sub    eax, @atk
-            mov    @atk,eax
-            invoke  _AerocraftChangeNowHP, @lpEnemy, @atk; , 谁扣血, 扣多少血@atk
-        ;.endif
-    .else
-        mov     @output, 0
-    .endif
-
-    mov     eax, @output
-    ret
+popad
+mov     eax, @output
+ret
 _BulletHitPlayer endp
+
 
 _BulletHitExp proc uses esi, @lpBullet
     local   @output, @index 
@@ -1632,12 +1676,15 @@ _AerocraftGainExp proc uses esi ecx  ebx, lpaerocraft,GainExp
     ret
 _AerocraftGainExp	endp
 
-_AerocraftLevelUp proc uses esi ,lpaerocraft
+_AerocraftLevelUp proc uses esi eax ,lpaerocraft
     assume	esi : ptr AEROCRAFT
     mov		esi, lpaerocraft
     inc     [esi].dwLevel
+    mov     eax, 100
+    add     [esi].dwMaxHP,eax
+    add     [esi].dwHP, eax
+    add[esi].dwAtk, eax
     assume	esi : nothing
-    ;?还未解决，怎么实现升级选择
     ret
 _AerocraftLevelUp    endp
 
@@ -1849,6 +1896,9 @@ _ShowMakerDestroy proc
     invoke DeleteDC, stShowMaker.hBarrierDC
     invoke DeleteDC, stShowMaker.hMaskDC
     invoke DeleteDC, stShowMaker.hUIDC
+    invoke DeleteDC, stShowMaker.hRK1DC
+    invoke DeleteDC, stShowMaker.hRK2DC
+    invoke DeleteDC, stShowMaker.hRK3DC
     invoke DeleteObject, stShowMaker.hBmpFinal
     invoke DeleteObject, stAerocraft1.hBmp
     invoke DeleteObject, stAerocraft2.hBmp
@@ -1860,6 +1910,9 @@ _ShowMakerDestroy proc
     invoke DeleteObject, stShowMaker.hBarrierBmp
     invoke DeleteObject, stShowMaker.hMaskBmp
     invoke DeleteObject, stShowMaker.hUIBmp
+    invoke DeleteObject, stShowMaker.hRK1Bmp
+    invoke DeleteObject, stShowMaker.hRK2Bmp
+    invoke DeleteObject, stShowMaker.hRK3Bmp
     ; <<<<<删除完成
 
     ret
@@ -1877,7 +1930,6 @@ _ShowMakerShowBarrier proc uses eax ecx esi
         .if [esi].dwID == 0
             jmp @F
         .endif
-
         finit
         mov    eax, [esi].dwRadius
         mov    @D, eax
@@ -1928,6 +1980,12 @@ _ShowMakerFirstPaint proc uses eax
     mov    stShowMaker.hBarrierDC, eax
     invoke CreateCompatibleDC, @hDC
     mov    stShowMaker.hUIDC, eax
+    invoke CreateCompatibleDC, @hDC
+    mov    stShowMaker.hRK1DC, eax
+    invoke CreateCompatibleDC, @hDC
+    mov    stShowMaker.hRK2DC, eax
+    invoke CreateCompatibleDC, @hDC
+    mov    stShowMaker.hRK3DC, eax
     invoke CreateCompatibleBitmap, @hDC, WINDOW_HIDTH, WINDOW_WIDTH
     mov    stShowMaker.hBmpFinal, eax
     invoke ReleaseDC, hWinMain, @hDC
@@ -1954,6 +2012,12 @@ _ShowMakerFirstPaint proc uses eax
     mov    stShowMaker.hUIBmp, eax
     invoke LoadBitmap, hInstance, IDB_MASK
     mov    stShowMaker.hMaskBmp, eax
+    invoke LoadBitmap, hInstance, IDB_RK1
+    mov    stShowMaker.hRK1Bmp, eax
+    invoke LoadBitmap, hInstance, IDB_RK2
+    mov    stShowMaker.hRK2Bmp, eax
+    invoke LoadBitmap, hInstance, IDB_RK3
+    mov    stShowMaker.hRK3Bmp, eax
 
     invoke SelectObject, stAerocraft1.hDC, stAerocraft1.hBmp
     invoke SelectObject, stAerocraft2.hDC, stAerocraft2.hBmp
@@ -1966,6 +2030,9 @@ _ShowMakerFirstPaint proc uses eax
     invoke SelectObject, stShowMaker.hBarrierDC, stShowMaker.hBarrierBmp
     invoke SelectObject, stShowMaker.hMaskDC, stShowMaker.hMaskBmp
     invoke SelectObject, stShowMaker.hUIDC, stShowMaker.hUIBmp
+    invoke SelectObject, stShowMaker.hRK1DC, stShowMaker.hRK1Bmp
+    invoke SelectObject, stShowMaker.hRK2DC, stShowMaker.hRK2Bmp
+    invoke SelectObject, stShowMaker.hRK3DC, stShowMaker.hRK3Bmp
 
 
     ; 绘制背景
@@ -2127,6 +2194,40 @@ _ShowMakerPaint proc uses eax ecx esi
     mov testsnum,eax
     pop eax
     assume esi:nothing
+
+    ; 绘制弹药包
+    assume esi:ptr BULLETPACK
+    lea    esi, stBulletPack
+    xor    ecx, ecx
+    .while ecx < BULLETPACKMAXNUM
+        mov    eax, [esi].dwID
+        inc    ecx
+        push   ecx
+        .if [esi].dwID == 0
+            jmp @F
+        .endif
+
+        finit
+        mov    eax, [esi].dwRadius
+        mov    @D, eax
+        add    @D, eax
+        fld    [esi].stNowPos.fX
+        fist   @x
+        fld    [esi].stNowPos.fY
+        fist   @y
+        mov    eax, [esi].dwRadius
+        sub    @x, eax
+        sub    @y, eax
+        push   ecx
+        invoke StretchBlt, stShowMaker.hFinalDC, @x, @y, @D, @D, [esi].hDC, 0, 0, 100, 100, SRCAND
+        pop    ecx
+    @@:
+        add    esi, sizeof BULLETPACK
+        pop    ecx
+    .endw
+
+    assume esi:nothing
+
     
     ; 绘制飞机1
     finit
@@ -2312,7 +2413,30 @@ _MainFrame proc uses eax esi ecx
             invoke _ExpPackInit, eax
         .endif
     ; .endif
-        
+     ; 武器包生成
+        mov    eax, 1000
+        invoke  _RandGet
+        .if  eax < 2
+            mov eax, 0
+            invoke _RandSetSeed
+            mov    eax, 100
+            invoke  _RandGet
+            .if eax < 20
+                mov    eax, 5
+            .elseif eax < 40
+                mov    eax, 4
+            .elseif eax < 60
+                mov    eax, 3
+            .elseif eax < 80
+                mov    eax, 2
+            .else
+                mov    eax, 1
+            .endif
+            push   eax
+            invoke printf, addr msg2
+            pop    eax
+            invoke _BulletPackInit, eax
+        .endif
     invoke _MainKeyboard
     invoke _AerocraftVeer
     invoke _AerocraftMove, addr stAerocraft1

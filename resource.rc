@@ -12,6 +12,9 @@
 # define IDB_PLANE2         106
 # define IDB_BULLET2        107
 # define IDB_UI             108
+# define IDB_RK1            109
+# define IDB_RK2            110
+# define IDB_RK3            111
 
 
 
@@ -27,3 +30,6 @@ IDB_BARRIER BITMAP      "Barrier.bmp"
 IDB_PLANE2  BITMAP      "Plane2.bmp"
 IDB_BULLET2 BITMAP      "Bullet2.bmp"
 IDB_UI      BITMAP      "UI.bmp"
+IDB_RK1     BITMAP      "RK1.bmp"
+IDB_RK2     BITMAP      "RK2.bmp"
+IDB_RK3     BITMAP      "RK3.bmp"
