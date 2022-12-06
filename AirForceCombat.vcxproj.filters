@@ -88,5 +88,8 @@
     <Image Include="Plane2.bmp">
       <Filter>资源文件</Filter>
     </Image>
+    <Image Include="UI.bmp">
+      <Filter>资源文件</Filter>
+    </Image>
   </ItemGroup>
 </Project>

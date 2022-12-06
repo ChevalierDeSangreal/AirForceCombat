@@ -15,10 +15,10 @@ includelib      msvcrt.lib
 includelib      ucrt.lib
 includelib      legacy_stdio_definitions.lib
 
-WINDOW_HIDTH    equ     500
-WINDOW_WIDTH    equ     500
-MAP_HIDTH       equ     500
-MAP_WIDTH       equ     500
+WINDOW_HIDTH    equ     1400
+WINDOW_WIDTH    equ     1000
+MAP_HIDTH       equ     1400
+MAP_WIDTH       equ     800
 
 ; 图片大小常数
 PLANEBMPHIDTH   equ     128
@@ -29,6 +29,8 @@ EXPBMPHIDTH     equ     128
 EXPBMPWIDTH     equ     128
 BARRIERBMPHIDTH equ     128
 BARRIERBMPWIDTH equ     128
+UIBMPHIDTH      equ     1400
+UIBMPWIDTH      equ     200
 
 ICO_MAIN        equ     100
 IDC_MAIN        equ     100
@@ -41,6 +43,7 @@ IDB_EXP         equ     104
 IDB_BRRIER      equ     105
 IDB_PLANE2      equ     106
 IDB_BULLET2     equ     107
+IDB_UI          equ     108
 ID_TIMER        equ     1
 
 INITHP          equ     1000
@@ -48,7 +51,7 @@ INITR           equ     20
 INITATK         equ     20
 INITATF         equ     10
 INITCALIBER     equ     5
-INITBULLETSPEED equ     1
+INITBULLETSPEED equ     10
 INITPLANESPEED  equ     50
 BULLETMAXNUM    equ     500   
 BARRIERMAXNUM   equ     5; 子弹数量上限，也就是子弹池的规模
@@ -87,6 +90,13 @@ msg1       byte 'shoot', 0ah, 0
 msg2       byte 'pack', 0ah, 0
 msg3       byte 'printpack', 0ah, 0
 msg4       byte '%d',0
+msg5       byte 'LEVEL:%d', 0
+msg6       byte 'HP:%d/%d', 0
+msg7       byte 'EXP:%d', 0
+msg8       byte 'Player %d Wins the Game!!!', 0
+msg9       byte 'Game Over!!!', 0
+msgtmp     byte 64 dup(0)
+
 POS struct
 
     fX          real8 ?
@@ -144,7 +154,7 @@ INTPOS ends
 SHOWMAKER struct
 
     hBmpFinal   dd ?
-    hDCFinal    dd ?
+    hFinalDC    dd ?
     hBmpBack    dd ?
     hBulletDC1  dd ?
     hBulletDC2  dd ?
@@ -158,8 +168,10 @@ SHOWMAKER struct
     hExpBmp3    dd ?
     hBarrierBmp dd ?
     hBarrierDC  dd ?
-    hBmpMask    dd ?
-    hDCMask     dd ?
+    hMaskBmp    dd ?
+    hMaskDC     dd ?
+    hUIBmp      dd ?
+    hUIDC       dd ?
 
 SHOWMAKER ends
 
@@ -219,6 +231,7 @@ _AerocraftGainExp proto lpaerocraft:dword, GainExp:dword
 _AerocraftChangeNowHP proto lpaerocraft:dword, num:dword
 _AerocraftChangeBullet proto @lpPlayer:dword, @types:dword
 printf		PROTO C : dword, : vararg
+
 .const
 szClassName     db      'Clock', 0
 EPS             real8   0.000000001
@@ -1412,7 +1425,7 @@ _BulletInit proc uses edx esi ebx ecx edi, lpAerocraft
 
     mov    eax, [edi].dwID
     mov    [esi].dwAerocraftID, eax
-    mov    eax, [edi].dwSpeed
+    mov    eax, [edi].dwBulletSpeed
     mov    [esi].dwSpeed, eax
     mov    eax, [edi].dwForward
     mov    [esi].dwForward, eax
@@ -1490,7 +1503,7 @@ _BulletMove proc uses  esi ecx ebx , lpbullet
     mov eax, dwBulletSpeedlimit
     .if eax>=30
         mov dwBulletSpeedlimit,0
-         ret
+        ret
     .endif
     assume esi : ptr BULLET
     mov    esi, lpbullet
@@ -1499,7 +1512,7 @@ _BulletMove proc uses  esi ecx ebx , lpbullet
     xor    eax, eax
     .while ecx!=0
         dec    ecx
-        invoke _BitMove ,ebx, [esi].dwForward, addr [esi].stNowPos
+        invoke _BitMove , ebx, [esi].dwForward, addr [esi].stNowPos
         invoke _BulletHitCheck ,esi
         .if eax == 1
             .break
@@ -1827,14 +1840,15 @@ _ShowMakerDestroy proc
     ; 删除>>>>>
     invoke DeleteDC, stAerocraft1.hDC
     invoke DeleteDC, stAerocraft2.hDC
-    invoke DeleteDC, stShowMaker.hDCFinal
+    invoke DeleteDC, stShowMaker.hFinalDC
     invoke DeleteDC, stShowMaker.hBulletDC1
     invoke DeleteDC, stShowMaker.hBulletDC2
     invoke DeleteDC, stShowMaker.hExpDC1
     invoke DeleteDC, stShowMaker.hExpDC2
     invoke DeleteDC, stShowMaker.hExpDC3
     invoke DeleteDC, stShowMaker.hBarrierDC
-    invoke DeleteDC, stShowMaker.hDCMask
+    invoke DeleteDC, stShowMaker.hMaskDC
+    invoke DeleteDC, stShowMaker.hUIDC
     invoke DeleteObject, stShowMaker.hBmpFinal
     invoke DeleteObject, stAerocraft1.hBmp
     invoke DeleteObject, stAerocraft2.hBmp
@@ -1844,7 +1858,8 @@ _ShowMakerDestroy proc
     invoke DeleteObject, stShowMaker.hExpBmp2
     invoke DeleteObject, stShowMaker.hExpBmp3
     invoke DeleteObject, stShowMaker.hBarrierBmp
-    invoke DeleteObject, stShowMaker.hBmpMask
+    invoke DeleteObject, stShowMaker.hMaskBmp
+    invoke DeleteObject, stShowMaker.hUIBmp
     ; <<<<<删除完成
 
     ret
@@ -1874,7 +1889,7 @@ _ShowMakerShowBarrier proc uses eax ecx esi
         mov    eax, [esi].dwRadius
         sub    @x, eax
         sub    @y, eax
-        invoke StretchBlt, stShowMaker.hDCFinal, @x, @y, @D, @D, stShowMaker.hBarrierDC, 0, 0, BARRIERBMPHIDTH, BARRIERBMPWIDTH, SRCAND
+        invoke StretchBlt, stShowMaker.hFinalDC, @x, @y, @D, @D, stShowMaker.hBarrierDC, 0, 0, BARRIERBMPHIDTH, BARRIERBMPWIDTH, SRCAND
 @@:
         add    esi, sizeof BARRIER
         pop    ecx
@@ -1892,7 +1907,7 @@ _ShowMakerFirstPaint proc uses eax
     invoke GetDC, hWinMain
     mov    @hDC, eax
     invoke CreateCompatibleDC, @hDC
-    mov    stShowMaker.hDCFinal, eax
+    mov    stShowMaker.hFinalDC, eax
     invoke CreateCompatibleDC, @hDC
     mov    stAerocraft1.hDC, eax
     invoke CreateCompatibleDC, @hDC
@@ -1908,10 +1923,12 @@ _ShowMakerFirstPaint proc uses eax
     invoke CreateCompatibleDC, @hDC
     mov    stShowMaker.hExpDC3, eax
     invoke CreateCompatibleDC, @hDC
-    mov    stShowMaker.hDCMask, eax
+    mov    stShowMaker.hMaskDC, eax
     invoke CreateCompatibleDC, @hDC
     mov    stShowMaker.hBarrierDC, eax
-    invoke CreateCompatibleBitmap, @hDC, MAP_HIDTH, MAP_WIDTH
+    invoke CreateCompatibleDC, @hDC
+    mov    stShowMaker.hUIDC, eax
+    invoke CreateCompatibleBitmap, @hDC, WINDOW_HIDTH, WINDOW_WIDTH
     mov    stShowMaker.hBmpFinal, eax
     invoke ReleaseDC, hWinMain, @hDC
 
@@ -1933,31 +1950,38 @@ _ShowMakerFirstPaint proc uses eax
     mov    stShowMaker.hExpBmp3, eax
     invoke LoadBitmap, hInstance, IDB_BRRIER
     mov    stShowMaker.hBarrierBmp, eax
+    invoke LoadBitmap, hInstance, IDB_UI
+    mov    stShowMaker.hUIBmp, eax
     invoke LoadBitmap, hInstance, IDB_MASK
-    mov    stShowMaker.hBmpMask, eax
+    mov    stShowMaker.hMaskBmp, eax
 
     invoke SelectObject, stAerocraft1.hDC, stAerocraft1.hBmp
     invoke SelectObject, stAerocraft2.hDC, stAerocraft2.hBmp
-    invoke SelectObject, stShowMaker.hDCFinal, stShowMaker.hBmpFinal
+    invoke SelectObject, stShowMaker.hFinalDC, stShowMaker.hBmpFinal
     invoke SelectObject, stShowMaker.hBulletDC1, stShowMaker.hBulletBmp1
     invoke SelectObject, stShowMaker.hBulletDC2, stShowMaker.hBulletBmp2
     invoke SelectObject, stShowMaker.hExpDC1, stShowMaker.hExpBmp1
     invoke SelectObject, stShowMaker.hExpDC2, stShowMaker.hExpBmp2
     invoke SelectObject, stShowMaker.hExpDC3, stShowMaker.hExpBmp3
     invoke SelectObject, stShowMaker.hBarrierDC, stShowMaker.hBarrierBmp
-    invoke SelectObject, stShowMaker.hDCMask, stShowMaker.hBmpMask
+    invoke SelectObject, stShowMaker.hMaskDC, stShowMaker.hMaskBmp
+    invoke SelectObject, stShowMaker.hUIDC, stShowMaker.hUIBmp
 
 
     ; 绘制背景
     invoke CreatePatternBrush, stShowMaker.hBmpBack
-    invoke SelectObject, stShowMaker.hDCFinal, eax
-    invoke PatBlt, stShowMaker.hDCFinal, 0, 0, MAP_HIDTH, MAP_WIDTH, PATCOPY
+    invoke SelectObject, stShowMaker.hFinalDC, eax
+    invoke PatBlt, stShowMaker.hFinalDC, 0, 0, WINDOW_HIDTH, WINDOW_WIDTH, PATCOPY
     invoke DeleteObject, eax
+
+    ; 绘制UI
+    invoke BitBlt, stShowMaker.hFinalDC, 0, MAP_WIDTH, UIBMPHIDTH, MAP_WIDTH + UIBMPWIDTH, stShowMaker.hUIDC, 0, 0, SRCAND
+
 
     ; 放缩图片
     ; invoke StretchBlt, @htmp1DC, 0, 0, @D, @D, stAerocraft1.hDC, 0, 0, 150, 150, SRCAND
 
-    ; invoke TransparentBlt, hDCFinal, 0, 0, CLOCK_SIZE, CLOCK_SIZE, @hDCCircle, 0, 0, CLOCK_SIZE, CLOCK_SIZE, 0
+    ; invoke TransparentBlt, hFinalDC, 0, 0, CLOCK_SIZE, CLOCK_SIZE, @hDCCircle, 0, 0, CLOCK_SIZE, CLOCK_SIZE, 0
     
     ; 绘制障碍物
     invoke _ShowMakerShowBarrier
@@ -1974,9 +1998,9 @@ _ShowMakerFirstPaint proc uses eax
     mov    eax, stAerocraft1.dwRadius
     sub    @x, eax
     sub    @y, eax
-    invoke StretchBlt, stShowMaker.hDCFinal, @x, @y, @D, @D, stAerocraft1.hDC, 0, 0, PLANEBMPHIDTH, PLANEBMPWIDTH, SRCAND
+    invoke StretchBlt, stShowMaker.hFinalDC, @x, @y, @D, @D, stAerocraft1.hDC, 0, 0, PLANEBMPHIDTH, PLANEBMPWIDTH, SRCAND
     ; invoke BitBlt, @x, @y, @D, @D, 0, 0, @D, @D, SRCAND
-    ; invoke TransparentBlt, stShowMaker.hDCFinal, @x, @y, MAP_HIDTH, MAP_WIDTH, @htmp1DC, 0, 0, @D, @D, 0
+    ; invoke TransparentBlt, stShowMaker.hFinalDC, @x, @y, MAP_HIDTH, MAP_WIDTH, @htmp1DC, 0, 0, @D, @D, 0
 
     ; 绘制飞机2
     mov    eax, stAerocraft2.dwRadius
@@ -1989,7 +2013,7 @@ _ShowMakerFirstPaint proc uses eax
     mov    eax, stAerocraft2.dwRadius
     sub    @x, eax
     sub    @y, eax
-    invoke StretchBlt, stShowMaker.hDCFinal, @x, @y, @D, @D, stAerocraft2.hDC, 0, 0, PLANEBMPHIDTH, PLANEBMPWIDTH, SRCAND
+    invoke StretchBlt, stShowMaker.hFinalDC, @x, @y, @D, @D, stAerocraft2.hDC, 0, 0, PLANEBMPHIDTH, PLANEBMPWIDTH, SRCAND
 
 
     ret
@@ -2002,9 +2026,26 @@ _ShowMakerPaint proc uses eax ecx esi
 
     ; 绘制背景
     invoke CreatePatternBrush, stShowMaker.hBmpBack
-    invoke SelectObject, stShowMaker.hDCFinal, eax
-    invoke PatBlt, stShowMaker.hDCFinal, 0, 0, MAP_HIDTH, MAP_WIDTH, PATCOPY
+    invoke SelectObject, stShowMaker.hFinalDC, eax
+    invoke PatBlt, stShowMaker.hFinalDC, 0, 0, WINDOW_HIDTH, WINDOW_WIDTH, PATCOPY
+    ; invoke PatBlt, stShowMaker.hFinalDC,  0, MAP_WIDTH, UIBMPHIDTH, MAP_WIDTH + UIBMPWIDTH, PATCOPY
     invoke DeleteObject, eax
+
+    ; 绘制UI
+    invoke BitBlt, stShowMaker.hFinalDC, 0, MAP_WIDTH, WINDOW_HIDTH, WINDOW_WIDTH, stShowMaker.hUIDC, 0, 0, SRCAND
+    invoke wsprintf, addr msgtmp, addr msg5, stAerocraft1.dwLevel
+    invoke TextOut, stShowMaker.hFinalDC, 40, MAP_WIDTH + 40, addr msgtmp, 7
+    invoke wsprintf, addr msgtmp, addr msg6, stAerocraft1.dwHP, stAerocraft1.dwMaxHP
+    invoke TextOut, stShowMaker.hFinalDC, 40, MAP_WIDTH + 85, addr msgtmp, eax
+    invoke wsprintf, addr msgtmp, addr msg7, stAerocraft1.dwExp
+    invoke TextOut, stShowMaker.hFinalDC, 40, MAP_WIDTH + 130, addr msgtmp, eax
+    invoke wsprintf, addr msgtmp, addr msg5, stAerocraft2.dwLevel
+    invoke TextOut, stShowMaker.hFinalDC, 740, MAP_WIDTH + 40, addr msgtmp, 7
+    invoke wsprintf, addr msgtmp, addr msg6, stAerocraft2.dwHP, stAerocraft2.dwMaxHP
+    invoke TextOut, stShowMaker.hFinalDC, 740, MAP_WIDTH + 85, addr msgtmp, eax
+    invoke wsprintf, addr msgtmp, addr msg7, stAerocraft2.dwExp
+    invoke TextOut, stShowMaker.hFinalDC, 740, MAP_WIDTH + 130, addr msgtmp, eax
+
 
     ; 绘制障碍物
     invoke _ShowMakerShowBarrier
@@ -2032,10 +2073,10 @@ _ShowMakerPaint proc uses eax ecx esi
         sub    @x, eax
         sub    @y, eax
         .if [esi].dwAerocraftID == 1
-            invoke StretchBlt, stShowMaker.hDCFinal, @x, @y, @D, @D, stShowMaker.hBulletDC1, 0, 0, BULLETBMPHIDTH, BULLETBMPWIDTH, SRCAND
+            invoke StretchBlt, stShowMaker.hFinalDC, @x, @y, @D, @D, stShowMaker.hBulletDC1, 0, 0, BULLETBMPHIDTH, BULLETBMPWIDTH, SRCAND
         .endif
         .if [esi].dwAerocraftID == 2
-            invoke StretchBlt, stShowMaker.hDCFinal, @x, @y, @D, @D, stShowMaker.hBulletDC2, 0, 0, BULLETBMPHIDTH, BULLETBMPWIDTH, SRCAND
+            invoke StretchBlt, stShowMaker.hFinalDC, @x, @y, @D, @D, stShowMaker.hBulletDC2, 0, 0, BULLETBMPHIDTH, BULLETBMPWIDTH, SRCAND
         .endif
 @@:
         add    esi, sizeof BULLET
@@ -2074,7 +2115,7 @@ _ShowMakerPaint proc uses eax ecx esi
         sub    @x, eax
         sub    @y, eax
         push   ecx
-        invoke StretchBlt, stShowMaker.hDCFinal, @x, @y, @D, @D, [esi].hDC, 0, 0, EXPBMPHIDTH, EXPBMPWIDTH, SRCAND
+        invoke StretchBlt, stShowMaker.hFinalDC, @x, @y, @D, @D, [esi].hDC, 0, 0, EXPBMPHIDTH, EXPBMPWIDTH, SRCAND
         pop    ecx
     @@:
         add    esi, sizeof EXPPACK
@@ -2099,7 +2140,7 @@ _ShowMakerPaint proc uses eax ecx esi
     mov    eax, stAerocraft1.dwRadius
     sub    @x, eax
     sub    @y, eax
-    invoke StretchBlt, stShowMaker.hDCFinal, @x, @y, @D, @D, stAerocraft1.hDC, 0, 0, PLANEBMPHIDTH, PLANEBMPWIDTH, SRCAND
+    invoke StretchBlt, stShowMaker.hFinalDC, @x, @y, @D, @D, stAerocraft1.hDC, 0, 0, PLANEBMPHIDTH, PLANEBMPWIDTH, SRCAND
 
 
     ; 绘制飞机2
@@ -2113,7 +2154,7 @@ _ShowMakerPaint proc uses eax ecx esi
     mov    eax, stAerocraft2.dwRadius
     sub    @x, eax
     sub    @y, eax
-    invoke StretchBlt, stShowMaker.hDCFinal, @x, @y, @D, @D, stAerocraft2.hDC, 0, 0, PLANEBMPHIDTH, PLANEBMPWIDTH, SRCAND
+    invoke StretchBlt, stShowMaker.hFinalDC, @x, @y, @D, @D, stAerocraft2.hDC, 0, 0, PLANEBMPHIDTH, PLANEBMPWIDTH, SRCAND
 
 
     ret
@@ -2123,7 +2164,7 @@ _ShowMakerInit proc
 
     ; 创建窗口
     invoke SetWindowRgn, hWinMain, eax, TRUE
-    invoke SetWindowPos, hWinMain, HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE OR SWP_NOSIZE
+    invoke SetWindowPos, hWinMain, HWND_TOP, 40, 40, 0, 0, SWP_NOMOVE OR SWP_NOSIZE
 
 
     invoke _ShowMakerFirstPaint
@@ -2132,6 +2173,14 @@ _ShowMakerInit proc
 
     ret
 _ShowMakerInit endp
+
+_MainGameOver proc ID
+
+    invoke wsprintf, addr msgtmp, addr msg8, ID
+    invoke MessageBox, hWinMain, addr msgtmp, addr msg9, MB_OK
+    invoke ExitProcess, NULL
+    
+_MainGameOver endp
 
 _MainKeyboard proc
         local @outs:dword
@@ -2289,7 +2338,7 @@ _ProcWinMain proc uses ebx edi esi, hWnd, uMsg, wParam, lParam
         sub    eax, @stPs.rcPaint.left
         mov    ecx, @stPs.rcPaint.bottom
         sub    ecx, @stPs.rcPaint.top
-        invoke BitBlt, @hDC, @stPs.rcPaint.left, @stPs.rcPaint.top, eax, ecx, stShowMaker.hDCFinal, @stPs.rcPaint.left, @stPs.rcPaint.top, SRCCOPY
+        invoke BitBlt, @hDC, @stPs.rcPaint.left, @stPs.rcPaint.top, eax, ecx, stShowMaker.hFinalDC, @stPs.rcPaint.left, @stPs.rcPaint.top, SRCCOPY
         invoke EndPaint, hWnd, addr @stPs
     .elseif eax == WM_CREATE
         mov   eax, hWnd
@@ -2331,7 +2380,7 @@ _WinMain proc
     mov     @stWndClass.hbrBackground, COLOR_WINDOW + 1
     mov     @stWndClass.lpszClassName, offset szClassName
     invoke  RegisterClassEx, addr @stWndClass
-    invoke  CreateWindowEx, NULL, offset szClassName, offset szClassName, WS_POPUP, 0, 0, WINDOW_HIDTH, WINDOW_WIDTH, NULL, NULL, hInstance, NULL
+    invoke  CreateWindowEx, NULL, offset szClassName, offset szClassName, WS_POPUP, 40, 40, WINDOW_HIDTH, WINDOW_WIDTH, NULL, NULL, hInstance, NULL
     mov     hWinMain, eax
     invoke  ShowWindow, hWinMain, SW_SHOWNORMAL
     invoke  UpdateWindow, hWinMain

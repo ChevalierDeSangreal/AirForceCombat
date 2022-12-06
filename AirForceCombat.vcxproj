@@ -171,6 +171,7 @@
     <Image Include="Mask.bmp" />
     <Image Include="Plane1.bmp" />
     <Image Include="Plane2.bmp" />
+    <Image Include="UI.bmp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

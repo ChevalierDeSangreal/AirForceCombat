@@ -185,6 +185,11 @@
 输入：NULL  
 输出：NULL  
 
+- 游戏结束！ _MainGameOver
+  > 描述：结束游戏，点确认以后关闭窗口  
+  输入：dd获胜飞机的id  
+  输出：NULL
+
 - 响应键盘输入 _MainKeyBoard  
   > 描述：  
   > &emsp;&emsp;更新AEROCRAFT类的nxt  
@@ -232,6 +237,9 @@
 - dd hExpBmp3
 - dd hBarrierBmp
 - dd hBarrierDC
+- dd hUIBmp
+- dd hUIDC
+
 #### 方法
 - 重绘图像 _ShowMakerPaint
 - 初始化很多句柄并第一次显示图像 _ShowMakerPaint
